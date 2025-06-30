@@ -29,6 +29,8 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api', require('./routes/userRoutes'));
+app.use('/api', require('./routes/tagRoutes'));
+
 
 app.listen(port, () => {
   console.log(`Server running on ${process.env.PUBLIC_API_URL}`);

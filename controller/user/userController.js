@@ -8,7 +8,7 @@ const JWT_SECRET = process.env.JWT_SECRET_KEY; // .
 
 const register = async (req, res) => {
     try {
-        const { username, email, phone, password, job_title, company_name, timezone, language, headline } = req.body || {};
+        let { username, email, phone, password, job_title, company_name, timezone, language, headline, tag_id, post_id, comment_id, rewards_id,save_id } = req.body || {};
 
         if (!username || !email || !password) {
             return res.status(400).json({ msg: 'Missing required fields' });
@@ -32,20 +32,26 @@ const register = async (req, res) => {
             return res.status(400).json({ msg: 'User already exists' });
         }
 
-       
         const hashedPassword = await bcrypt.hash(password, 10);
 
         let profilePhotoUrl = '';
         if (req.file) {
-           
             const host = req.protocol + '://' + req.get('host');
             profilePhotoUrl = `${host}/uploads/${req.file.filename}`;
         }
 
-    
-        const sql = `INSERT INTO ${TABLES.USER_TABLE} (username, email, phone, password, job_title, company_name, profile_photo, timezone, language, headline)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-        const [result] = await db.query(sql, [username, email, phone, hashedPassword, job_title, company_name, profilePhotoUrl, timezone, language, headline]);
+        // Handle tag_id as CSV string if array
+        if (Array.isArray(tag_id)) tag_id = tag_id.join(',');
+        if (tag_id === undefined || tag_id === '' || tag_id === null) tag_id = null;
+        if (post_id === undefined || post_id === '' || post_id === null) post_id = null;
+        if (comment_id === undefined || comment_id === '' || comment_id === null) comment_id = null;
+        if (rewards_id === undefined || rewards_id === '' || rewards_id === null) rewards_id = null;
+        if (save_id === undefined || save_id === '' || save_id === null) save_id = null;
+
+
+        const sql = `INSERT INTO ${TABLES.USER_TABLE} (username, email, phone, password, job_title, company_name, profile_photo, timezone, language, headline, tag_id, post_id, comment_id, rewards_id, save_id)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+        const [result] = await db.query(sql, [username, email, phone, hashedPassword, job_title, company_name, profilePhotoUrl, timezone, language, headline, tag_id, post_id, comment_id, rewards_id, save_id]);
         const user = {
             id: result.insertId,
             username,
@@ -56,7 +62,12 @@ const register = async (req, res) => {
             profile_photo: profilePhotoUrl,
             timezone,
             language,
-            headline
+            headline,
+            tag_id,
+            post_id,
+            comment_id,
+            rewards_id,
+            save_id
         };
         res.status(201).json({ msg: 'User registered successfully', user });
     } catch (error) {
@@ -163,7 +174,7 @@ const deleteUser = async (req, res) => {
 const updateUser = async (req, res) => {
     try {
         const userId = req.user_id;
-        const { username, email, phone, job_title, company_name, timezone, language, headline } = req.body || {};
+        let { username, email, phone, job_title, company_name, timezone, language, headline, tag_id, post_id, comment_id, rewards_id , save_id } = req.body || {};
 
         // Get current user
         const [users] = await db.query(`SELECT * FROM ${TABLES.USER_TABLE} WHERE id = ?`, [userId]);
@@ -194,7 +205,6 @@ const updateUser = async (req, res) => {
             }
         }
 
-    
         if (username && username !== currentUser.username) {
             const [usernameUsers] = await db.query(`SELECT id FROM ${TABLES.USER_TABLE} WHERE username = ? AND id != ?`, [username, userId]);
             if (usernameUsers.length > 0) {
@@ -202,12 +212,19 @@ const updateUser = async (req, res) => {
             }
         }
 
-     
         let profilePhotoUrl = currentUser.profile_photo;
         if (req.file) {
             const host = req.protocol + '://' + req.get('host');
             profilePhotoUrl = `${host}/uploads/${req.file.filename}`;
         }
+
+        // Handle tag_id as CSV string if array
+        if (Array.isArray(tag_id)) tag_id = tag_id.join(',');
+        if (tag_id === undefined || tag_id === '' || tag_id === null) tag_id = null;
+        if (post_id === undefined || post_id === '' || post_id === null) post_id = null;
+        if (comment_id === undefined || comment_id === '' || comment_id === null) comment_id = null;
+        if (rewards_id === undefined || rewards_id === '' || rewards_id === null) rewards_id = null;
+        if (save_id === undefined || save_id === '' || save_id === null) save_id = null;
 
         const updatedFields = {
             username: username || currentUser.username,
@@ -218,11 +235,16 @@ const updateUser = async (req, res) => {
             timezone: timezone || currentUser.timezone,
             language: language || currentUser.language,
             headline: headline || currentUser.headline,
-            profile_photo: profilePhotoUrl
+            profile_photo: profilePhotoUrl,
+            tag_id: tag_id || currentUser.tag_id,
+            post_id: post_id || currentUser.post_id,
+            comment_id: comment_id || currentUser.comment_id,
+            rewards_id: rewards_id || currentUser.rewards_id,
+            save_id: save_id || currentUser.save_id
         };
 
         await db.query(
-            `UPDATE ${TABLES.USER_TABLE} SET username=?, email=?, phone=?, job_title=?, company_name=?, timezone=?, language=?, headline=?, profile_photo=?, updated_at=NOW() WHERE id=?`,
+            `UPDATE ${TABLES.USER_TABLE} SET username=?, email=?, phone=?, job_title=?, company_name=?, timezone=?, language=?, headline=?, profile_photo=?, tag_id=?, post_id=?, comment_id=?, rewards_id=?,save_id=?, updated_at=NOW() WHERE id=?`,
             [
                 updatedFields.username,
                 updatedFields.email,
@@ -233,6 +255,11 @@ const updateUser = async (req, res) => {
                 updatedFields.language,
                 updatedFields.headline,
                 updatedFields.profile_photo,
+                updatedFields.tag_id,
+                updatedFields.post_id,
+                updatedFields.comment_id,
+                updatedFields.rewards_id,
+                updatedFields.save_id,
                 userId
             ]
         );
