@@ -1,6 +1,7 @@
 const express = require('express');
-const { register, login, uploadImage, getUsers, deleteUser, updateUser, forgotPassword, changePassword } = require('../controller/user/userController');
+const { register, login, getUsers, deleteUser, updateUser, forgotPassword, changePassword } = require('../controller/user/userController');
 const authMiddleware = require('../utils/authValidation');
+const { uploadImage } = require('../utils/validation');
 const router = express.Router();
 
 // Register route
