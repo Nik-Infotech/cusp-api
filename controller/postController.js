@@ -217,4 +217,6 @@ const updatePost = async (req, res) => {
 };
 
 
+
+
 module.exports = { createPost , getPost, deletePost , updatePost };

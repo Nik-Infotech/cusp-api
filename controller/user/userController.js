@@ -8,9 +8,10 @@ const JWT_SECRET = process.env.JWT_SECRET_KEY; // .
 
 const register = async (req, res) => {
     try {
-        let { username, email, phone, password, job_title, company_name, timezone, language, headline, tag_id, post_id, comment_id, rewards_id,save_id } = req.body || {};
+        let { username, email, phone, password, job_title, company_name, timezone, language, headline, tag_id, post_id, comment_id, rewards_id, save_id, que1, que2 } = req.body || {};
 
-        if (!username || !email || !password) {
+        // Add que1 and que2 to required fields check
+        if (!username || !email || !password || !que1 || !que2) {
             return res.status(400).json({ msg: 'Missing required fields' });
         }
 
@@ -49,9 +50,9 @@ const register = async (req, res) => {
         if (save_id === undefined || save_id === '' || save_id === null) save_id = null;
 
 
-        const sql = `INSERT INTO ${TABLES.USER_TABLE} (username, email, phone, password, job_title, company_name, profile_photo, timezone, language, headline, tag_id, post_id, comment_id, rewards_id, save_id)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-        const [result] = await db.query(sql, [username, email, phone, hashedPassword, job_title, company_name, profilePhotoUrl, timezone, language, headline, tag_id, post_id, comment_id, rewards_id, save_id]);
+        const sql = `INSERT INTO ${TABLES.USER_TABLE} (username, email, phone, password, job_title, company_name, profile_photo, timezone, language, headline, tag_id, post_id, comment_id, rewards_id, save_id, que1, que2)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`; // 17 columns, 17 placeholders
+        const [result] = await db.query(sql, [username, email, phone, hashedPassword, job_title, company_name, profilePhotoUrl, timezone, language, headline, tag_id, post_id, comment_id, rewards_id, save_id, que1, que2]);
         const user = {
             id: result.insertId,
             username,
@@ -67,7 +68,9 @@ const register = async (req, res) => {
             post_id,
             comment_id,
             rewards_id,
-            save_id
+            save_id,
+            que1,
+            que2
         };
         res.status(201).json({ msg: 'User registered successfully', user });
     } catch (error) {
@@ -174,7 +177,7 @@ const deleteUser = async (req, res) => {
 const updateUser = async (req, res) => {
     try {
         const userId = req.user_id;
-        let { username, email, phone, job_title, company_name, timezone, language, headline, tag_id, post_id, comment_id, rewards_id , save_id } = req.body || {};
+        let { username, email, phone, job_title, company_name, timezone, language, headline, tag_id, post_id, comment_id, rewards_id , save_id, que1, que2 } = req.body || {};
 
         // Get current user
         const [users] = await db.query(`SELECT * FROM ${TABLES.USER_TABLE} WHERE id = ?`, [userId]);
@@ -240,11 +243,13 @@ const updateUser = async (req, res) => {
             post_id: post_id || currentUser.post_id,
             comment_id: comment_id || currentUser.comment_id,
             rewards_id: rewards_id || currentUser.rewards_id,
-            save_id: save_id || currentUser.save_id
+            save_id: save_id || currentUser.save_id,
+            que1: que1 || currentUser.que1,
+            que2: que2 || currentUser.que2
         };
 
         await db.query(
-            `UPDATE ${TABLES.USER_TABLE} SET username=?, email=?, phone=?, job_title=?, company_name=?, timezone=?, language=?, headline=?, profile_photo=?, tag_id=?, post_id=?, comment_id=?, rewards_id=?,save_id=?, updated_at=NOW() WHERE id=?`,
+            `UPDATE ${TABLES.USER_TABLE} SET username=?, email=?, phone=?, job_title=?, company_name=?, timezone=?, language=?, headline=?, profile_photo=?, tag_id=?, post_id=?, comment_id=?, rewards_id=?,save_id=?, que1=?, que2=?, updated_at=NOW() WHERE id=?`,
             [
                 updatedFields.username,
                 updatedFields.email,
@@ -260,6 +265,8 @@ const updateUser = async (req, res) => {
                 updatedFields.comment_id,
                 updatedFields.rewards_id,
                 updatedFields.save_id,
+                updatedFields.que1,
+                updatedFields.que2,
                 userId
             ]
         );
@@ -332,6 +339,8 @@ const changePassword = async (req, res) => {
         
     }
 }
+
+
 
 
 module.exports = { register, login, uploadImage, getUsers, deleteUser, updateUser , forgotPassword ,changePassword};

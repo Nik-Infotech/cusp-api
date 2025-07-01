@@ -31,6 +31,7 @@ app.get('/', (req, res) => {
 app.use('/api', require('./routes/userRoutes'));
 app.use('/api', require('./routes/tagRoutes'));
 app.use('/api', require('./routes/postRoutes'));
+app.use('/api', require('./routes/commentRoutes'));
 
 
 app.listen(port, () => {
