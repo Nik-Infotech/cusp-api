@@ -9,7 +9,7 @@ const router = express.Router();
 router.post('/tag', tagCreate);
 router.get(['/tags', '/tags/:id'], getTags);
 router.delete('/tags/:id',deleteTag)
-router.patch('/tags/:id', authMiddleware ,updateTag); // Assuming you want to use the same delete logic for PATCH
+router.patch('/tags/:id', authMiddleware ,updateTag); 
 
 
 
