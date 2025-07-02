@@ -312,7 +312,15 @@ const likePost = async (req, res) => {
             [totalLikes, post_id]
         );
 
-        res.status(200).json({ msg: `Post ${status === 1 ? 'liked' : 'unliked'}`, totalLikes });
+        res.status(200).json({ msg: `Post ${status === 1 ? 'liked' : 'unliked'}`, totalLikes ,
+
+            //return post_id and title
+            post_id: post_id,
+            post_title: (await db.query(`SELECT title FROM ${TABLES.POST_TABLE} WHERE id = ?`, [post_id]))[0][0]?.title || 'Unknown Post Title'
+            //return user_id and username
+            , user_id: user_id,
+            username: (await db.query(`SELECT username FROM ${TABLES.USER_TABLE} WHERE id = ?`, [user_id]))[0][0]?.username || 'Unknown User'
+         });
 
     } catch (error) {
         console.error('Error updating like:', error);
