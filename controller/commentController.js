@@ -266,6 +266,59 @@ const getReplies = async (req, res) => {
     }
 }
 
+// like status in post
+const likePost = async (req, res) => {
+    try {
+        const post_id = req.body?.post_id;
+        const action = req.body?.like; // "yes" or "no"
+        const user_id = req.user_id;
+
+        if (!post_id  || !action) {
+            return res.status(400).json({ msg: 'Post ID, user ID, and like status are required' });
+        }
+
+        const status = action === 'yes' ? 1 : 0;
+
+        // Check if like record already exists
+        const [existing] = await db.query(
+            `SELECT * FROM ${TABLES.LIKE_TABLE} WHERE post_id = ? AND user_id = ?`,
+            [post_id, user_id]
+        );
+
+        if (existing.length > 0) {
+            // Update existing like/unlike
+            await db.query(
+                `UPDATE ${TABLES.LIKE_TABLE} SET status = ?, updated_at = NOW() WHERE id = ?`,
+                [status, existing[0].id]
+            );
+        } else {
+            // New like record
+            await db.query(
+                `INSERT INTO ${TABLES.LIKE_TABLE} (post_id, user_id, status) VALUES (?, ?, ?)`,
+                [post_id, user_id, status]
+            );
+        }
+
+        // Count total active likes
+        const [countResult] = await db.query(
+            `SELECT COUNT(*) AS total FROM ${TABLES.LIKE_TABLE} WHERE post_id = ? AND status = 1`,
+            [post_id]
+        );
+        const totalLikes = countResult[0].total;
+
+        // Update post table's likes field
+        await db.query(
+            `UPDATE ${TABLES.POST_TABLE} SET likes = ? WHERE id = ?`,
+            [totalLikes, post_id]
+        );
+
+        res.status(200).json({ msg: `Post ${status === 1 ? 'liked' : 'unliked'}`, totalLikes });
+
+    } catch (error) {
+        console.error('Error updating like:', error);
+        res.status(500).json({ msg: 'Internal Server Error' });
+    }
+};
 
 
-module.exports = { createComment , deleteComment , getComments , createReply , deleteReply,getReplies };
+module.exports = { createComment , deleteComment , getComments , createReply , deleteReply,getReplies , likePost };

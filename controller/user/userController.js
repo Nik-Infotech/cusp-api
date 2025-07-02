@@ -117,7 +117,10 @@ const login = async (req, res) => {
                 profile_photo: user.profile_photo,
                 timezone: user.timezone,
                 language: user.language,
-                headline: user.headline
+                headline: user.headline,
+                tag_id: user.tag_id,
+                que1: user.que1,
+                que2: user.que2,
             }
         });
     } catch (error) {
