@@ -113,7 +113,8 @@ const getPost = async (req, res) => {
             return res.status(404).json({ msg: 'Post not found' });
         }
 
-        // Group tags under each post
+
+        // Group tags and collect uploads for each post
         const postsMap = new Map();
 
         for (const row of rows) {
@@ -134,7 +135,8 @@ const getPost = async (req, res) => {
                     email: row.email,
                     phone: row.phone,
                     company_name: row.company_name,
-                    job_title: row.job_title
+                    job_title: row.job_title,
+                    uploads: []
                 });
             }
 
@@ -143,6 +145,22 @@ const getPost = async (req, res) => {
                     tag_id: row.tag_id,
                     tag_title: row.tag_title
                 });
+            }
+        }
+
+        // Fetch uploads for all posts
+        const postIds = Array.from(postsMap.keys());
+        if (postIds.length > 0) {
+            const uploadsSql = `SELECT * FROM post_uploads WHERE post_id IN (${postIds.map(() => '?').join(',')})`;
+            const [uploadsRows] = await db.query(uploadsSql, postIds);
+            for (const upload of uploadsRows) {
+                if (postsMap.has(upload.post_id)) {
+                    postsMap.get(upload.post_id).uploads.push({
+                        id: upload.id,
+                        image: upload.image,
+                        video: upload.video
+                    });
+                }
             }
         }
 
@@ -279,54 +297,51 @@ const updatePost = async (req, res) => {
 };
 
 
-const updatePostUpload = async (req, res) => {
+//save post api
+
+const savePost = async (req, res) => {
     try {
-        const uploadId = req.params.id;
+        // Accept both postId (camelCase) and post_id (snake_case) from body
+        const postId = req.body.postId || req.body.post_id;
         const user_id = req.user_id;
 
-        // Fetch existing upload
-        const [rows] = await db.query('SELECT * FROM post_uploads WHERE id = ?', [uploadId]);
-        if (rows.length === 0) {
-            return res.status(404).json({ msg: 'Upload not found' });
-        }
-        const upload = rows[0];
-
-        // Only allow owner to update
-        if (upload.user_id !== user_id) {
-            return res.status(403).json({ msg: 'Forbidden' });
+        if (!postId || !user_id) {
+            return res.status(400).json({ msg: 'Post ID and user ID are required' });
         }
 
-        let newImage = upload.image;
-        let newVideo = upload.video;
-
-        // Remove old file if new one is uploaded
-        if (req.files?.image) {
-            if (upload.image) {
-                const oldPath = path.join(process.cwd(), upload.image.replace('/uploads/', 'uploads/'));
-                if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-            }
-            newImage = `/uploads/${req.files.image[0].filename}`;
-            newVideo = null;
-        }
-        if (req.files?.video) {
-            if (upload.video) {
-                const oldPath = path.join(process.cwd(), upload.video.replace('/uploads/', 'uploads/'));
-                if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-            }
-            newVideo = `/uploads/${req.files.video[0].filename}`;
-            newImage = null;
+        // Check if the post exists
+        const [posts] = await db.query(`SELECT * FROM ${TABLES.POST_TABLE} WHERE id = ? AND status = 1`, [postId]);
+        if (posts.length === 0) {
+            return res.status(404).json({ msg: 'Post not found or already deleted' });
         }
 
-        await db.query(
-            'UPDATE post_uploads SET image = ?, video = ? WHERE id = ?',
-            [newImage, newVideo, uploadId]
-        );
+        // Insert into saved_posts (POST_SAVE_TABLE)
+        await db.query(`INSERT INTO ${TABLES.POST_SAVE_TABLE} (user_id, post_id) VALUES (?, ?)`, [user_id, postId]);
 
-        res.status(200).json({ msg: 'Upload updated successfully', upload: { id: uploadId, image: newImage, video: newVideo } });
+        // Count how many posts this user has saved
+        const [countRows] = await db.query(`SELECT COUNT(*) AS count FROM ${TABLES.POST_SAVE_TABLE} WHERE user_id = ?`, [user_id]);
+        const savedCount = countRows[0]?.count || 0;
+
+        // Update save_id in USER_TABLE for this user
+        await db.query(`UPDATE ${TABLES.USER_TABLE} SET save_id = ? WHERE id = ?`, [savedCount, user_id]);
+
+        res.status(201).json({ msg: 'Post saved successfully' });
     } catch (error) {
-        console.error('Error updating post upload:', error);
+        console.error('Error saving post:', error);
         res.status(500).json({ msg: 'Internal Server Error', error: error.message });
     }
 };
 
-module.exports = { createPost, getPost, deletePost, updatePost, updatePostUpload };
+
+const DeleteSavedPost = async (req, res) => {
+    try {
+
+        
+    } catch (error) {
+        console.error('Error deleting saved post:', error);
+        res.status(500).json({ msg: 'Internal Server Error', error: error.message });
+        
+    }
+}
+
+module.exports = { createPost, getPost, deletePost, updatePost ,savePost };

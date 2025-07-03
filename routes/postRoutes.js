@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createPost, getPost, deletePost, updatePost, updatePostUpload } = require("../controller/postController");
+const { createPost, getPost, deletePost, updatePost, updatePostUpload, savePost } = require("../controller/postController");
 const authMiddleware = require("../utils/authValidation");
 const { uploadPostMedia, validatePostMediaFiles, uploadSinglePostMedia, validateSinglePostMediaFile } = require("../utils/validation");
 
@@ -21,12 +21,7 @@ router.patch(
   validatePostMediaFiles,
   updatePost
 );
-// router.patch(
-//     '/post-upload/:id',
-//     authMiddleware,
-//     uploadSinglePostMedia,
-//     validateSinglePostMediaFile,
-//     updatePostUpload
-// );
+
+router.post('/save-post',authMiddleware,savePost);
 
 module.exports = router;

@@ -8,7 +8,7 @@ const JWT_SECRET = process.env.JWT_SECRET_KEY; // .
 
 const register = async (req, res) => {
     try {
-        let { username, email, phone, password, job_title, company_name, timezone, language, headline, tag_id, post_id, comment_id, rewards_id, save_id, que1, que2 } = req.body || {};
+        let { username, email, phone, password, job_title, company_name, timezone, language, headline, tag_id, post_id, comment_id, rewards_id, save_id, que1, que2, address } = req.body || {};
 
         // Add que1 and que2 to required fields check
         if (!username || !email || !password || !que1 || !que2) {
@@ -50,9 +50,9 @@ const register = async (req, res) => {
         if (save_id === undefined || save_id === '' || save_id === null) save_id = null;
 
 
-        const sql = `INSERT INTO ${TABLES.USER_TABLE} (username, email, phone, password, job_title, company_name, profile_photo, timezone, language, headline, tag_id, post_id, comment_id, rewards_id, save_id, que1, que2)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`; // 17 columns, 17 placeholders
-        const [result] = await db.query(sql, [username, email, phone, hashedPassword, job_title, company_name, profilePhotoUrl, timezone, language, headline, tag_id, post_id, comment_id, rewards_id, save_id, que1, que2]);
+        const sql = `INSERT INTO ${TABLES.USER_TABLE} (username, email, phone, password, job_title, company_name, profile_photo, timezone, language, headline, tag_id, post_id, comment_id, rewards_id, save_id, que1, que2, address)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`; // 18 columns, 18 placeholders
+        const [result] = await db.query(sql, [username, email, phone, hashedPassword, job_title, company_name, profilePhotoUrl, timezone, language, headline, tag_id, post_id, comment_id, rewards_id, save_id, que1, que2, address]);
         const user = {
             id: result.insertId,
             username,
@@ -70,7 +70,8 @@ const register = async (req, res) => {
             rewards_id,
             save_id,
             que1,
-            que2
+            que2,
+            address
         };
         res.status(201).json({ msg: 'User registered successfully', user });
     } catch (error) {
@@ -104,25 +105,83 @@ const login = async (req, res) => {
             { expiresIn: '10h' }
         );
 
-        res.status(200).json({
-            msg: 'Login successful',
-            token,
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                phone: user.phone,
-                job_title: user.job_title,
-                company_name: user.company_name,
-                profile_photo: user.profile_photo,
-                timezone: user.timezone,
-                language: user.language,
-                headline: user.headline,
-                tag_id: user.tag_id,
-                que1: user.que1,
-                que2: user.que2,
-            }
-        });
+    let tagIdArr = [];
+    if (user.tag_id) {
+      try {
+        if (Array.isArray(user.tag_id)) {
+          tagIdArr = user.tag_id.map(Number);
+        } else if (typeof user.tag_id === 'string') {
+          tagIdArr = JSON.parse(user.tag_id);
+          if (!Array.isArray(tagIdArr)) {
+            tagIdArr = user.tag_id.split(',').map(id => Number(id.trim())).filter(Boolean);
+          }
+        }
+      } catch (e) {
+        tagIdArr = user.tag_id.split(',').map(id => Number(id.trim())).filter(Boolean);
+      }
+    }
+
+    // Fetch tag names for tag_id(s)
+    let tagNames = [];
+    if (tagIdArr.length > 0) {
+      const [tags] = await db.query(`SELECT id, name FROM ${TABLES.TAG_TABLE} WHERE id IN (${tagIdArr.map(() => '?').join(',')})`, tagIdArr);
+      tagNames = tags.map(tag => ({ id: tag.id, name: tag.name }));
+    }
+
+    // Fetch post titles and descriptions for post_id(s)
+    let postTitles = [];
+    let postIdArr = [];
+    if (user.post_id) {
+      postIdArr = user.post_id.split(',').map(id => Number(id.trim())).filter(Boolean);
+      if (postIdArr.length > 0) {
+        const [posts] = await db.query(`SELECT id, title, description FROM ${TABLES.POST_TABLE} WHERE id IN (${postIdArr.map(() => '?').join(',')})`, postIdArr);
+        postTitles = posts.map(post => ({ id: post.id, title: post.title, description: post.description }));
+      }
+    }
+
+    // Fetch comments for this user from COMMENT_TABLE
+    let userComments = [];
+    const [comments] = await db.query(
+      `SELECT id, post_id, comment_text FROM ${TABLES.COMMENT_TABLE} WHERE user_id = ?`,
+      [user.id]
+    );
+    if (comments && comments.length > 0) {
+      userComments = comments.map(c => ({ id: c.id, post_id: c.post_id, comment_text: c.comment_text }));
+    }
+
+    res.status(200).json({
+      msg: 'Login successful',
+      token,
+      user: {
+        id: user.id,
+        username: user.username || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        job_title: user.job_title || '',
+        company_name: user.company_name || '',
+        profile_photo: user.profile_photo || '',
+        timezone: user.timezone || '',
+        language: user.language || '',
+        headline: user.headline || '',
+        tag_id: tagIdArr, // Array of numbers
+        tag_details: tagNames, // Array of {id, name}
+        post_ids: postTitles, // Array of {id, title, description}
+        comment_id: user.comment_id || '',
+        user_comments: userComments, // Array of {id, post_id, comment_text}
+        rewards_id: user.rewards_id || '',
+        save_id: user.save_id ?? null,
+        que1: user.que1 || '',
+        que2: user.que2 || '',
+        address: user.address || '',
+        created_at: user.created_at || null,
+        updated_at: user.updated_at || null
+      }
+    });
+
+
+
+
+
     } catch (error) {
         console.error('Error in Login:', error);
         res.status(500).json({ msg: 'Internal Server Error' });
@@ -180,7 +239,7 @@ const deleteUser = async (req, res) => {
 const updateUser = async (req, res) => {
     try {
         const userId = req.user_id;
-        let { username, email, phone, job_title, company_name, timezone, language, headline, tag_id, post_id, comment_id, rewards_id , save_id, que1, que2 } = req.body || {};
+        let { username, email, phone, job_title, company_name, timezone, language, headline, tag_id, post_id, comment_id, rewards_id , save_id, que1, que2, address } = req.body || {};
 
         // Get current user
         const [users] = await db.query(`SELECT * FROM ${TABLES.USER_TABLE} WHERE id = ?`, [userId]);
@@ -248,11 +307,12 @@ const updateUser = async (req, res) => {
             rewards_id: rewards_id || currentUser.rewards_id,
             save_id: save_id || currentUser.save_id,
             que1: que1 || currentUser.que1,
-            que2: que2 || currentUser.que2
+            que2: que2 || currentUser.que2,
+            address: address || currentUser.address
         };
 
         await db.query(
-            `UPDATE ${TABLES.USER_TABLE} SET username=?, email=?, phone=?, job_title=?, company_name=?, timezone=?, language=?, headline=?, profile_photo=?, tag_id=?, post_id=?, comment_id=?, rewards_id=?,save_id=?, que1=?, que2=?, updated_at=NOW() WHERE id=?`,
+            `UPDATE ${TABLES.USER_TABLE} SET username=?, email=?, phone=?, job_title=?, company_name=?, timezone=?, language=?, headline=?, profile_photo=?, tag_id=?, post_id=?, comment_id=?, rewards_id=?,save_id=?, que1=?, que2=?, address=?, updated_at=NOW() WHERE id=?`,
             [
                 updatedFields.username,
                 updatedFields.email,
@@ -270,6 +330,7 @@ const updateUser = async (req, res) => {
                 updatedFields.save_id,
                 updatedFields.que1,
                 updatedFields.que2,
+                updatedFields.address,
                 userId
             ]
         );

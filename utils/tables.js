@@ -7,6 +7,7 @@ const TABLES = {
     REPLY_TABLE: 'cusp_comment_reply',
     LIKE_TABLE: 'cusp_like',
     POST_UPLOADS_TABLE:'post_uploads',
+    POST_SAVE_TABLE: 'cusp_savepost',
  
 
 }
