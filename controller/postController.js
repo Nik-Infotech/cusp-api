@@ -1,9 +1,14 @@
 const db = require('../db/db');
-const { get } = require('../routes/userRoutes');
 const TABLES = require('../utils/tables');
+const { uploadPostMedia, validatePostMediaFiles, uploadSinglePostMedia, validateSinglePostMediaFile } = require('../utils/validation');
+const fs = require('fs');
+const path = require('path');
 
 const createPost = async (req, res) => {
     try {
+        console.log('BODY:', req.body);
+        console.log('FILES:', req.files);
+
         const { title, description, tags = '', likes = 0, comments = 0 } = req.body;
         const user_id = req.user_id;
 
@@ -13,18 +18,11 @@ const createPost = async (req, res) => {
         if (!user_id) {
             return res.status(401).json({ msg: 'Unauthorized: user_id missing' });
         }
-        
-        // // post already exists
-        // const [existingPosts] = await db.query(`select * from ${TABLES.POST_TABLE} where title = ? and user_id = ?`, [title, user_id]);
-        // if (existingPosts.length > 0) {
-        //     return res.status(400).json({ msg: 'Post with this title already exist for this user' });
-
-        // }
-
 
         const tagsStr = typeof tags === 'string' ? tags : tags.join(',');
         const tagsArray = tagsStr ? tagsStr.split(',') : [];
 
+        // Insert post
         const sql = `INSERT INTO ${TABLES.POST_TABLE} (title, description, user_id, tags, likes, comments) VALUES (?, ?, ?, ?, ?, ?)`;
         const [result] = await db.query(sql, [
             title,
@@ -34,22 +32,49 @@ const createPost = async (req, res) => {
             likes,
             comments
         ]);
+        const postId = result.insertId;
+        console.log('Post inserted, id:', postId);
+
+        // Handle uploads
+        const images = req.files?.images || [];
+        const videos = req.files?.videos || [];
+        const uploads = [];
+
+        for (const img of images) {
+            const fileUrl = `/uploads/${img.filename}`;
+            console.log('Inserting image:', fileUrl);
+            await db.query(
+                `INSERT INTO post_uploads (post_id, user_id, image, video) VALUES (?, ?, ?, NULL)`,
+                [postId, user_id, fileUrl]
+            );
+            uploads.push({ image: fileUrl, video: null });
+        }
+        for (const vid of videos) {
+            const fileUrl = `/uploads/${vid.filename}`;
+            console.log('Inserting video:', fileUrl);
+            await db.query(
+                `INSERT INTO post_uploads (post_id, user_id, image, video) VALUES (?, ?, NULL, ?)`,
+                [postId, user_id, fileUrl]
+            );
+            uploads.push({ image: null, video: fileUrl });
+        }
 
         res.status(201).json({
             msg: 'Post created successfully',
             post: {
-                id: result.insertId,
+                id: postId,
                 title,
                 description,
                 user_id,
                 tags: tagsArray,
                 likes,
-                comments
+                comments,
+                uploads
             }
         });
     } catch (error) {
         console.error('Error creating post:', error);
-        res.status(500).json({ msg: 'Internal Server Error' });
+        res.status(500).json({ msg: 'Internal dd Server Error', error: error.message });
     }
 };
 
@@ -127,7 +152,7 @@ const getPost = async (req, res) => {
 
     } catch (error) {
         console.error('Error fetching posts:', error);
-        return res.status(500).json({ msg: 'Internal Server Error' });
+        return res.status(500).json({ msg: 'Internal gt Server Error' });
     }
 };
 
@@ -151,14 +176,14 @@ const deletePost = async (req, res) => {
         res.status(200).json({ msg: 'Post deleted (soft delete) successfully' });
     } catch (error) {
         console.error('Error in soft delete:', error);
-        res.status(500).json({ msg: 'Internal Server Error' });
+        res.status(500).json({ msg: 'Internal hh Server Error' });
     }
 };
 
 const updatePost = async (req, res) => {
     try {
         const postId = req.params.id;
-        const { title, description, tags, likes, comments } = req.body;
+        const { title, description, tags, likes, comments, remove_upload_ids } = req.body;
         const user_id = req.user_id;
 
         if (!postId) {
@@ -193,6 +218,7 @@ const updatePost = async (req, res) => {
         const updatedLikes = likes ?? existing.likes;
         const updatedComments = comments ?? existing.comments;
 
+        // Update post data
         const sql = `
             UPDATE ${TABLES.POST_TABLE}
             SET title = ?, description = ?, tags = ?, likes = ?, comments = ?, updated_at = NOW()
@@ -208,15 +234,99 @@ const updatePost = async (req, res) => {
             postId
         ]);
 
+        // Remove uploads if requested
+        if (remove_upload_ids) {
+            const ids = Array.isArray(remove_upload_ids) ? remove_upload_ids : [remove_upload_ids];
+            for (const id of ids) {
+                // Get file path to delete
+                const [rows] = await db.query('SELECT * FROM post_uploads WHERE id = ? AND post_id = ?', [id, postId]);
+                if (rows.length) {
+                    const upload = rows[0];
+                    const filePath = upload.image || upload.video;
+                    if (filePath) {
+                        const absPath = path.join(process.cwd(), filePath.replace('/uploads/', 'uploads/'));
+                        if (fs.existsSync(absPath)) fs.unlinkSync(absPath);
+                    }
+                    await db.query('DELETE FROM post_uploads WHERE id = ?', [id]);
+                }
+            }
+        }
+
+        // Add new uploads if provided
+        const images = req.files?.images || [];
+        const videos = req.files?.videos || [];
+        for (const img of images) {
+            const fileUrl = `/uploads/${img.filename}`;
+            await db.query(
+                `INSERT INTO post_uploads (post_id, user_id, image, video) VALUES (?, ?, ?, NULL)`,
+                [postId, user_id, fileUrl]
+            );
+        }
+        for (const vid of videos) {
+            const fileUrl = `/uploads/${vid.filename}`;
+            await db.query(
+                `INSERT INTO post_uploads (post_id, user_id, image, video) VALUES (?, ?, NULL, ?)`,
+                [postId, user_id, fileUrl]
+            );
+        }
+
         res.status(200).json({ msg: 'Post updated successfully' });
 
     } catch (error) {
         console.error('Error updating post:', error);
-        res.status(500).json({ msg: 'Internal Server Error' });
+        res.status(500).json({ msg: 'Internal Server Error', error: error.message });
     }
 };
 
 
+const updatePostUpload = async (req, res) => {
+    try {
+        const uploadId = req.params.id;
+        const user_id = req.user_id;
 
+        // Fetch existing upload
+        const [rows] = await db.query('SELECT * FROM post_uploads WHERE id = ?', [uploadId]);
+        if (rows.length === 0) {
+            return res.status(404).json({ msg: 'Upload not found' });
+        }
+        const upload = rows[0];
 
-module.exports = { createPost , getPost, deletePost , updatePost };
+        // Only allow owner to update
+        if (upload.user_id !== user_id) {
+            return res.status(403).json({ msg: 'Forbidden' });
+        }
+
+        let newImage = upload.image;
+        let newVideo = upload.video;
+
+        // Remove old file if new one is uploaded
+        if (req.files?.image) {
+            if (upload.image) {
+                const oldPath = path.join(process.cwd(), upload.image.replace('/uploads/', 'uploads/'));
+                if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+            }
+            newImage = `/uploads/${req.files.image[0].filename}`;
+            newVideo = null;
+        }
+        if (req.files?.video) {
+            if (upload.video) {
+                const oldPath = path.join(process.cwd(), upload.video.replace('/uploads/', 'uploads/'));
+                if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+            }
+            newVideo = `/uploads/${req.files.video[0].filename}`;
+            newImage = null;
+        }
+
+        await db.query(
+            'UPDATE post_uploads SET image = ?, video = ? WHERE id = ?',
+            [newImage, newVideo, uploadId]
+        );
+
+        res.status(200).json({ msg: 'Upload updated successfully', upload: { id: uploadId, image: newImage, video: newVideo } });
+    } catch (error) {
+        console.error('Error updating post upload:', error);
+        res.status(500).json({ msg: 'Internal Server Error', error: error.message });
+    }
+};
+
+module.exports = { createPost, getPost, deletePost, updatePost, updatePostUpload };

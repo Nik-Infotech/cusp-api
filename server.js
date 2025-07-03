@@ -33,6 +33,11 @@ app.use('/api', require('./routes/tagRoutes'));
 app.use('/api', require('./routes/postRoutes'));
 app.use('/api', require('./routes/commentRoutes'));
 
+app.use((err, req, res, next) => {
+    console.error('Global error:', err);
+    res.status(500).json({ msg: 'Internal ser Server Error', error: err.message });
+});
+
 
 app.listen(port, () => {
   console.log(`Server running on ${process.env.PUBLIC_API_URL}`);
