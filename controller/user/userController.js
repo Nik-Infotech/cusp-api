@@ -167,6 +167,17 @@ const login = async (req, res) => {
       savedPostsTitles = savedTitles.map(row => ({ id: row.id, title: row.title }));
     }
 
+    //fetch the likes of the user
+    let userLikes = [];
+    const [likes] = await db.query(
+      `SELECT post_id FROM ${TABLES.LIKE_TABLE} WHERE user_id = ?`,
+        [user.id]
+    );
+    if (likes && likes.length > 0) {
+        userLikes = likes.map(like => like.post_id);
+        }
+
+
     res.status(200).json({
       msg: 'Login successful',
       token,
@@ -190,6 +201,7 @@ const login = async (req, res) => {
         save_id: user.save_id ?? null,
         saved_post_ids: savedPostIds, // Array of post_id user has saved
         saved_post_titles: savedPostsTitles, // Array of {id, title} for saved posts
+        user_likes: userLikes, // Array of post_ids the user has liked
         que1: user.que1 || '',
         que2: user.que2 || '',
         address: user.address || '',
