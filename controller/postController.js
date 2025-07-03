@@ -301,8 +301,8 @@ const updatePost = async (req, res) => {
 
 const savePost = async (req, res) => {
     try {
-        // Accept both postId (camelCase) and post_id (snake_case) from body
-        const postId = req.body.postId || req.body.post_id;
+        // Only accept post_id (snake_case) from body
+        const postId = req.body.post_id;
         const user_id = req.user_id;
 
         if (!postId || !user_id) {
@@ -335,6 +335,26 @@ const savePost = async (req, res) => {
 
 const DeleteSavedPost = async (req, res) => {
     try {
+     
+        const postId = req.body.post_id;
+        const user_id = req.user_id;
+        if (!postId || !user_id) {
+            return res.status(400).json({ msg: 'Post ID and user ID are required' });
+        }
+        // Check if the post exists in saved posts
+        const [savedPosts] = await db.query(`SELECT * FROM ${TABLES.POST_SAVE_TABLE} WHERE post_id = ? AND user_id = ?`, [postId, user_id]);
+        if (savedPosts.length === 0) {
+            return res.status(404).json({ msg: 'Saved post not found' });
+        }
+        // Delete the saved post
+        await db.query(`DELETE FROM ${TABLES.POST_SAVE_TABLE} WHERE post_id = ? AND user_id = ?`, [postId, user_id]);   
+        // Count how many posts this user has saved
+        const [countRows] = await db.query(`SELECT COUNT(*) AS count FROM ${TABLES.POST_SAVE_TABLE} WHERE user_id = ?`, [user_id]);
+        const savedCount = countRows[0]?.count || 0;
+        // Update save_id in USER_TABLE for this user
+        await db.query(`UPDATE ${TABLES.USER_TABLE} SET save_id = ? WHERE id = ?`, [savedCount, user_id]);
+        res.status(200).json({ msg: 'Saved post deleted successfully' });
+
 
         
     } catch (error) {
@@ -344,4 +364,4 @@ const DeleteSavedPost = async (req, res) => {
     }
 }
 
-module.exports = { createPost, getPost, deletePost, updatePost ,savePost };
+module.exports = { createPost, getPost, deletePost, updatePost ,savePost ,DeleteSavedPost};

@@ -11,7 +11,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(cors({
-  origin: 'http://31.97.56.234:8081',
+  origin: '*',
   methods: 'GET,POST,PUT,PATCH,DELETE',
   allowedHeaders: 'Content-Type,Authorization',
   exposedHeaders: 'Content-Length,X-Kuma-Revision',
