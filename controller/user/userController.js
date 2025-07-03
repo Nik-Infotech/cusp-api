@@ -149,6 +149,24 @@ const login = async (req, res) => {
       userComments = comments.map(c => ({ id: c.id, post_id: c.post_id, comment_text: c.comment_text }));
     }
 
+
+    // Fetch saved post ids for this user from POST_SAVE_TABLE (only not deleted)
+    let savedPostIds = [];
+    let savedPostsTitles = [];
+    const [savedPosts] = await db.query(
+      `SELECT post_id FROM ${TABLES.POST_SAVE_TABLE} WHERE user_id = ? AND (deleted_at IS NULL OR deleted_at = 0)`,
+      [user.id]
+    );
+    if (savedPosts && savedPosts.length > 0) {
+      savedPostIds = savedPosts.map(row => row.post_id);
+      // Fetch titles for these post_ids from POST_TABLE
+      const [savedTitles] = await db.query(
+        `SELECT id, title FROM ${TABLES.POST_TABLE} WHERE id IN (${savedPostIds.map(() => '?').join(',')})`,
+        savedPostIds
+      );
+      savedPostsTitles = savedTitles.map(row => ({ id: row.id, title: row.title }));
+    }
+
     res.status(200).json({
       msg: 'Login successful',
       token,
@@ -170,6 +188,8 @@ const login = async (req, res) => {
         user_comments: userComments, // Array of {id, post_id, comment_text}
         rewards_id: user.rewards_id || '',
         save_id: user.save_id ?? null,
+        saved_post_ids: savedPostIds, // Array of post_id user has saved
+        saved_post_titles: savedPostsTitles, // Array of {id, title} for saved posts
         que1: user.que1 || '',
         que2: user.que2 || '',
         address: user.address || '',
