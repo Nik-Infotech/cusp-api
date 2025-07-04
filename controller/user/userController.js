@@ -139,10 +139,10 @@ const login = async (req, res) => {
       }
     }
 
-    // Fetch comments for this user from COMMENT_TABLE
+    // Fetch only active comments for this user from COMMENT_TABLE
     let userComments = [];
     const [comments] = await db.query(
-      `SELECT id, post_id, comment_text FROM ${TABLES.COMMENT_TABLE} WHERE user_id = ?`,
+      `SELECT id, post_id, comment_text FROM ${TABLES.COMMENT_TABLE} WHERE user_id = ? AND status = 1`,
       [user.id]
     );
     if (comments && comments.length > 0) {
@@ -300,9 +300,10 @@ const getUsers = async (req, res) => {
                 createdPosts = created.map(post => ({ id: post.id, title: post.title, description: post.description }));
             }
             // Comments
+            // Only fetch active comments for this user
             let userComments = [];
             const [comments] = await db.query(
-                `SELECT id, post_id, comment_text FROM ${TABLES.COMMENT_TABLE} WHERE user_id = ?`,
+                `SELECT id, post_id, comment_text FROM ${TABLES.COMMENT_TABLE} WHERE user_id = ? AND status = 1`,
                 [user.id]
             );
             if (comments && comments.length > 0) {

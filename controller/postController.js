@@ -366,4 +366,37 @@ const DeleteSavedPost = async (req, res) => {
     }
 }
 
-module.exports = { createPost, getPost, deletePost, updatePost ,savePost ,DeleteSavedPost};
+const reportPost = async (req, res) => {
+    try {
+        const { post_id, reason } = req.body;
+        const user_id = req.user_id;
+
+        if (!post_id || !reason || !user_id) {
+            return res.status(400).json({ msg: 'Post ID, reason, and user ID are required' });
+        }
+
+        // Check if the post exists
+        const [posts] = await db.query(`SELECT * FROM ${TABLES.POST_TABLE} WHERE id = ? AND status = 1`, [post_id]);
+        if (posts.length === 0) {
+            return res.status(404).json({ msg: 'Post not found or already deleted' });
+        }
+
+        // Insert report into reports table
+        await db.query(`INSERT INTO ${TABLES.REPORT_TABLE} (user_id, post_id, reason) VALUES (?, ?, ?)`, [user_id, post_id, reason]);
+
+        //fetch username from user_id from user table
+        const [user] = await db.query(`SELECT username FROM ${TABLES.USER_TABLE} WHERE id = ?`, [user_id]);
+        if (user.length === 0) {    
+            return res.status(404).json({ msg: 'User not found' });
+        }   
+        const username = user[0].username;
+    
+
+        res.status(201).json({ msg: 'Post reported successfully' , post_id: post_id, reason: reason, user_id: user_id , username: username });
+    } catch (error) {
+        console.error('Error reporting post:', error);
+        res.status(500).json({ msg: 'Internal Server Error', error: error.message });
+    }
+};
+
+module.exports = { createPost, getPost, deletePost, updatePost ,savePost ,DeleteSavedPost , reportPost };

@@ -11,6 +11,7 @@ const TABLES = {
     EVENT_TABLE: 'cusp_event',
     EVENT_ATTENDEES_TABLE: 'cusp_event_attendees',
     EVENT_TAGS:'cusp_event_tags',
+    REPORT_TABLE: 'cusp_report_post',
  
 
 }

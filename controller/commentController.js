@@ -160,10 +160,7 @@ const getComments = async (req, res) => {
             replies: repliesMap[comment.id] || []
         }));
 
-        // If /comment/:id or /comment/post-id/:id, return single object if only one found
-        if (commentId && result.length === 1) {
-            return res.status(200).json(result[0]);
-        }
+        // Always return array, even if only one comment is found
         return res.status(200).json(result);
 
     } catch (error) {
