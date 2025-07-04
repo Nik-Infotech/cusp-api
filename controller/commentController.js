@@ -90,6 +90,8 @@ const deleteComment = async (req, res) => {
 const getComments = async (req, res) => {
     try {
         const commentId = req.params.id;
+        // Check if the route is /comment/post-id/:id
+        const isPostIdRoute = req.originalUrl.includes('/comment/post-id/');
         let sql, params;
 
         const baseQuery = `
@@ -103,7 +105,12 @@ const getComments = async (req, res) => {
             WHERE c.status = 1
         `;
 
-        if (commentId) {
+        if (isPostIdRoute && commentId) {
+            // If /comment/post-id/:id, treat id as post_id
+            sql = baseQuery + ` AND c.post_id = ?`;
+            params = [commentId];
+        } else if (commentId) {
+            // If /comment/:id, treat id as comment_id
             sql = baseQuery + ` AND c.id = ?`;
             params = [commentId];
         } else {
@@ -140,7 +147,8 @@ const getComments = async (req, res) => {
                 acc[reply.comment_id].push({
                     reply_user_id: reply.reply_user_id,
                     reply_username: reply.reply_username,
-                    reply_text: reply.reply_text
+                    reply_text: reply.reply_text,
+                    reply_created_at: reply.created_at || new Date().toISOString()
                 });
                 return acc;
             }, {});
@@ -152,7 +160,11 @@ const getComments = async (req, res) => {
             replies: repliesMap[comment.id] || []
         }));
 
-        return res.status(200).json(commentId ? result[0] : result);
+        // If /comment/:id or /comment/post-id/:id, return single object if only one found
+        if (commentId && result.length === 1) {
+            return res.status(200).json(result[0]);
+        }
+        return res.status(200).json(result);
 
     } catch (error) {
         console.error('Error fetching comments:', error);

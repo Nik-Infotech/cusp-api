@@ -239,7 +239,125 @@ const getUsers = async (req, res) => {
             return res.status(404).json({ msg: 'User not found' });
         }
 
-        res.status(200).json(userId ? users[0] : users);
+        // Helper to build full user details (like login response)
+        const buildUserDetails = async (user) => {
+            if (!user) return null;
+            // Remove password
+            user = { ...user, password: false };
+
+            // tag_id
+            let tagIdArr = [];
+            if (user.tag_id) {
+                try {
+                    if (Array.isArray(user.tag_id)) {
+                        tagIdArr = user.tag_id.map(Number);
+                    } else if (typeof user.tag_id === 'string') {
+                        tagIdArr = JSON.parse(user.tag_id);
+                        if (!Array.isArray(tagIdArr)) {
+                            tagIdArr = user.tag_id.split(',').map(id => Number(id.trim())).filter(Boolean);
+                        }
+                    }
+                } catch (e) {
+                    tagIdArr = user.tag_id.split(',').map(id => Number(id.trim())).filter(Boolean);
+                }
+            }
+            // Tag details
+            let tagNames = [];
+            if (tagIdArr.length > 0) {
+                const [tags] = await db.query(`SELECT id, name FROM ${TABLES.TAG_TABLE} WHERE id IN (${tagIdArr.map(() => '?').join(',')})`, tagIdArr);
+                tagNames = tags.map(tag => ({ id: tag.id, name: tag.name }));
+            }
+            // Post details (from post_id field)
+            let postTitles = [];
+            let postIdArr = [];
+            if (user.post_id) {
+                postIdArr = user.post_id.split(',').map(id => Number(id.trim())).filter(Boolean);
+                if (postIdArr.length > 0) {
+                    const [posts] = await db.query(`SELECT id, title, description FROM ${TABLES.POST_TABLE} WHERE id IN (${postIdArr.map(() => '?').join(',')})`, postIdArr);
+                    postTitles = posts.map(post => ({ id: post.id, title: post.title, description: post.description }));
+                }
+            }
+
+            // User's created posts (array of objects: id, title, description)
+            let createdPosts = [];
+            const [created] = await db.query(
+                `SELECT id, title, description FROM ${TABLES.POST_TABLE} WHERE user_id = ?`,
+                [user.id]
+            );
+            if (created && created.length > 0) {
+                createdPosts = created.map(post => ({ id: post.id, title: post.title, description: post.description }));
+            }
+            // Comments
+            let userComments = [];
+            const [comments] = await db.query(
+                `SELECT id, post_id, comment_text FROM ${TABLES.COMMENT_TABLE} WHERE user_id = ?`,
+                [user.id]
+            );
+            if (comments && comments.length > 0) {
+                userComments = comments.map(c => ({ id: c.id, post_id: c.post_id, comment_text: c.comment_text }));
+            }
+            // Saved posts
+            let savedPostIds = [];
+            let savedPostsTitles = [];
+            const [savedPosts] = await db.query(
+                `SELECT post_id FROM ${TABLES.POST_SAVE_TABLE} WHERE user_id = ? AND (deleted_at IS NULL OR deleted_at = 0)`,
+                [user.id]
+            );
+            if (savedPosts && savedPosts.length > 0) {
+                savedPostIds = savedPosts.map(row => row.post_id);
+                const [savedTitles] = await db.query(
+                    `SELECT id, title FROM ${TABLES.POST_TABLE} WHERE id IN (${savedPostIds.map(() => '?').join(',')})`,
+                    savedPostIds
+                );
+                savedPostsTitles = savedTitles.map(row => ({ id: row.id, title: row.title }));
+            }
+            // Likes
+            let userLikes = [];
+            const [likes] = await db.query(
+                `SELECT post_id FROM ${TABLES.LIKE_TABLE} WHERE user_id = ?`,
+                [user.id]
+            );
+            if (likes && likes.length > 0) {
+                userLikes = likes.map(like => like.post_id);
+            }
+
+            return {
+                id: user.id,
+                username: user.username || '',
+                email: user.email || '',
+                phone: user.phone || '',
+                job_title: user.job_title || '',
+                company_name: user.company_name || '',
+                profile_photo: user.profile_photo || '',
+                timezone: user.timezone || '',
+                language: user.language || '',
+                headline: user.headline || '',
+                tag_id: tagIdArr,
+                tag_details: tagNames,
+                post_ids: postTitles,
+                created_posts: createdPosts, // Array of posts created by user
+                comment_id: user.comment_id || '',
+                user_comments: userComments,
+                rewards_id: user.rewards_id || '',
+                save_id: user.save_id ?? null,
+                saved_post_ids: savedPostIds,
+                saved_post_titles: savedPostsTitles,
+                user_likes: userLikes,
+                que1: user.que1 || '',
+                que2: user.que2 || '',
+                address: user.address || '',
+                created_at: user.created_at || null,
+                updated_at: user.updated_at || null
+            };
+        };
+
+        if (userId) {
+            const userDetails = await buildUserDetails(users[0]);
+            res.status(200).json(userDetails);
+        } else {
+            const allDetails = await Promise.all(users.map(buildUserDetails));
+            res.status(200).json(allDetails);
+        }
     } catch (error) {
         console.error('Error fetching users:', error);
         res.status(500).json({ msg: 'Internal Server Error' });
