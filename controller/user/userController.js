@@ -150,28 +150,33 @@ const login = async (req, res) => {
     }
 
 
-    // Fetch saved post ids for this user from POST_SAVE_TABLE (only not deleted)
+    // Fetch saved post ids for this user from POST_SAVE_TABLE (only not deleted and post exists)
     let savedPostIds = [];
     let savedPostsTitles = [];
     const [savedPosts] = await db.query(
-      `SELECT post_id FROM ${TABLES.POST_SAVE_TABLE} WHERE user_id = ? AND (deleted_at IS NULL OR deleted_at = 0)`,
+      `SELECT ps.post_id FROM ${TABLES.POST_SAVE_TABLE} ps
+       INNER JOIN ${TABLES.POST_TABLE} p ON ps.post_id = p.id
+       WHERE ps.user_id = ? AND (ps.deleted_at IS NULL OR ps.deleted_at = 0) AND p.status = 1`,
       [user.id]
     );
     if (savedPosts && savedPosts.length > 0) {
       savedPostIds = savedPosts.map(row => row.post_id);
-      // Fetch titles for these post_ids from POST_TABLE
-      const [savedTitles] = await db.query(
-        `SELECT id, title FROM ${TABLES.POST_TABLE} WHERE id IN (${savedPostIds.map(() => '?').join(',')})`,
-        savedPostIds
-      );
-      savedPostsTitles = savedTitles.map(row => ({ id: row.id, title: row.title }));
+      if (savedPostIds.length > 0) {
+        const [savedTitles] = await db.query(
+          `SELECT id, title FROM ${TABLES.POST_TABLE} WHERE id IN (${savedPostIds.map(() => '?').join(',')}) AND status = 1`,
+          savedPostIds
+        );
+        savedPostsTitles = savedTitles.map(row => ({ id: row.id, title: row.title }));
+      }
     }
 
-    //fetch the likes of the user
+    //fetch the likes of the user (only posts that still exist, are not deleted, and like status=1)
     let userLikes = [];
     const [likes] = await db.query(
-      `SELECT post_id FROM ${TABLES.LIKE_TABLE} WHERE user_id = ?`,
-        [user.id]
+      `SELECT l.post_id FROM ${TABLES.LIKE_TABLE} l
+       INNER JOIN ${TABLES.POST_TABLE} p ON l.post_id = p.id
+       WHERE l.user_id = ? AND p.status = 1 AND l.status = 1`,
+      [user.id]
     );
     if (likes && likes.length > 0) {
         userLikes = likes.map(like => like.post_id);
@@ -306,22 +311,29 @@ const getUsers = async (req, res) => {
             // Saved posts
             let savedPostIds = [];
             let savedPostsTitles = [];
+            // Only show saved posts that still exist in POST_TABLE and are not deleted
             const [savedPosts] = await db.query(
-                `SELECT post_id FROM ${TABLES.POST_SAVE_TABLE} WHERE user_id = ? AND (deleted_at IS NULL OR deleted_at = 0)`,
+                `SELECT ps.post_id FROM ${TABLES.POST_SAVE_TABLE} ps
+                 INNER JOIN ${TABLES.POST_TABLE} p ON ps.post_id = p.id
+                 WHERE ps.user_id = ? AND (ps.deleted_at IS NULL OR ps.deleted_at = 0) AND p.status = 1`,
                 [user.id]
             );
             if (savedPosts && savedPosts.length > 0) {
                 savedPostIds = savedPosts.map(row => row.post_id);
-                const [savedTitles] = await db.query(
-                    `SELECT id, title FROM ${TABLES.POST_TABLE} WHERE id IN (${savedPostIds.map(() => '?').join(',')})`,
-                    savedPostIds
-                );
-                savedPostsTitles = savedTitles.map(row => ({ id: row.id, title: row.title }));
+                if (savedPostIds.length > 0) {
+                    const [savedTitles] = await db.query(
+                        `SELECT id, title FROM ${TABLES.POST_TABLE} WHERE id IN (${savedPostIds.map(() => '?').join(',')}) AND status = 1`,
+                        savedPostIds
+                    );
+                    savedPostsTitles = savedTitles.map(row => ({ id: row.id, title: row.title }));
+                }
             }
-            // Likes
+            // Likes (only posts that still exist, are not deleted, and like status=1)
             let userLikes = [];
             const [likes] = await db.query(
-                `SELECT post_id FROM ${TABLES.LIKE_TABLE} WHERE user_id = ?`,
+                `SELECT l.post_id FROM ${TABLES.LIKE_TABLE} l
+                 INNER JOIN ${TABLES.POST_TABLE} p ON l.post_id = p.id
+                 WHERE l.user_id = ? AND p.status = 1 AND l.status = 1`,
                 [user.id]
             );
             if (likes && likes.length > 0) {
