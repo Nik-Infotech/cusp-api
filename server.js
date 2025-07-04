@@ -18,8 +18,8 @@ app.use(cors({
   credentials: true,
   maxAge: 600
 }));
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -32,6 +32,7 @@ app.use('/api', require('./routes/userRoutes'));
 app.use('/api', require('./routes/tagRoutes'));
 app.use('/api', require('./routes/postRoutes'));
 app.use('/api', require('./routes/commentRoutes'));
+app.use('/api', require('./routes/eventRoutes'))
 
 app.use((err, req, res, next) => {
     console.error('Global error:', err);

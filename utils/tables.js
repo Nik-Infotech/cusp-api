@@ -8,6 +8,9 @@ const TABLES = {
     LIKE_TABLE: 'cusp_like',
     POST_UPLOADS_TABLE:'post_uploads',
     POST_SAVE_TABLE: 'cusp_savepost',
+    EVENT_TABLE: 'cusp_event',
+    EVENT_ATTENDEES_TABLE: 'cusp_event_attendees',
+    EVENT_TAGS:'cusp_event_tags',
  
 
 }

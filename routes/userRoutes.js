@@ -1,5 +1,5 @@
 const express = require('express');
-const { register, login, getUsers, deleteUser, updateUser, forgotPassword, changePassword } = require('../controller/user/userController');
+const { register, login, getUsers, deleteUser, updateUser, forgotPassword, changePassword, verifyToken } = require('../controller/user/userController');
 const authMiddleware = require('../utils/authValidation');
 const { uploadImage } = require('../utils/validation');
 const router = express.Router();
@@ -13,5 +13,6 @@ router.patch('/users/update', authMiddleware, uploadImage.single('profile_photo'
 router.post('/users/forgot-password',forgotPassword);
 router.put('/users/change-password', changePassword); 
 
+router.get('/verify-token', verifyToken);
 
 module.exports = router;

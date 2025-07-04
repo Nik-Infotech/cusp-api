@@ -175,8 +175,14 @@ const login = async (req, res) => {
     );
     if (likes && likes.length > 0) {
         userLikes = likes.map(like => like.post_id);
-        }
+    }
 
+    // Fetch event registrations for this user
+    let registered_events = [];
+    const [eventRegs] = await db.query(`SELECT event_id FROM ${TABLES.EVENT_ATTENDEES_TABLE} WHERE user_id = ?`, [user.id]);
+    if (eventRegs && eventRegs.length > 0) {
+        registered_events = eventRegs.map(e => e.event_id);
+    }
 
     res.status(200).json({
       msg: 'Login successful',
@@ -202,6 +208,7 @@ const login = async (req, res) => {
         saved_post_ids: savedPostIds, // Array of post_id user has saved
         saved_post_titles: savedPostsTitles, // Array of {id, title} for saved posts
         user_likes: userLikes, // Array of post_ids the user has liked
+        registered_events, // Array of event_ids user registered for
         que1: user.que1 || '',
         que2: user.que2 || '',
         address: user.address || '',
@@ -321,6 +328,13 @@ const getUsers = async (req, res) => {
                 userLikes = likes.map(like => like.post_id);
             }
 
+            // Fetch event registrations for this user
+            let registered_events = [];
+            const [eventRegs] = await db.query(`SELECT event_id FROM ${TABLES.EVENT_ATTENDEES_TABLE} WHERE user_id = ?`, [user.id]);
+            if (eventRegs && eventRegs.length > 0) {
+                registered_events = eventRegs.map(e => e.event_id);
+            }
+
             return {
                 id: user.id,
                 username: user.username || '',
@@ -343,6 +357,7 @@ const getUsers = async (req, res) => {
                 saved_post_ids: savedPostIds,
                 saved_post_titles: savedPostsTitles,
                 user_likes: userLikes,
+                registered_events, // Array of event_ids user registered for
                 que1: user.que1 || '',
                 que2: user.que2 || '',
                 address: user.address || '',
@@ -554,7 +569,21 @@ const changePassword = async (req, res) => {
     }
 }
 
+const verifyToken = (req, res) => {
+    const token = req.headers['authorization']?.split(' ')[1];
+    if (!token) {
+        return res.status(401).json({ msg: 'No token provided' });
+    }
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(403).json({ msg: 'Invalid or expired token' });
+        }
+        // Token is valid
+        res.status(200).json({ msg: 'Token is valid', user_id: decoded.id, email: decoded.email });
+    });
+};
 
 
 
-module.exports = { register, login, uploadImage, getUsers, deleteUser, updateUser , forgotPassword ,changePassword};
+
+module.exports = { verifyToken, register, login, uploadImage, getUsers, deleteUser, updateUser , forgotPassword ,changePassword};

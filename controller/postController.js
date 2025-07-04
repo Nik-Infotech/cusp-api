@@ -89,6 +89,7 @@ const getPost = async (req, res) => {
                 u.username,
                 u.email,
                 u.phone,
+                u.profile_photo,
                 u.company_name,
                 u.job_title,
                 t.id AS tag_id,
@@ -134,6 +135,7 @@ const getPost = async (req, res) => {
                     username: row.username,
                     email: row.email,
                     phone: row.phone,
+                    profile_photo: row.profile_photo,
                     company_name: row.company_name,
                     job_title: row.job_title,
                     uploads: []
