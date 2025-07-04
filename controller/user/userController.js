@@ -520,30 +520,41 @@ const updateUser = async (req, res) => {
 };
 
 const forgotPassword = async (req, res) => {
- try {
-    const { email } = req.body;
-    if (!email){
-        return res.status(400).json({ error: 'Email is required', status: false });
-    }
-    if (!isValidGmail(email)) {
-        return res.status(400).json({ error: 'Only @gmail.com emails are allowed', status: false });
-    }
-    const [users] = await db.query(`SELECT * FROM ${TABLES.USER_TABLE} WHERE email = ?`, [email]);
-    if (users.length === 0) {
-        return res.status(404).json({ error: 'User not found', status: false });
-    }
-    const user = users[0];
-    const otp = Math.floor(100000 + Math.random() * 900000); 
-    const expiry = new Date(Date.now() + 15 * 60 * 1000); 
-    await db.query(`UPDATE ${TABLES.USER_TABLE} SET otp = ?, otp_expiry = ? WHERE id = ?`, [otp, expiry, user.id]);
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required', status: false });
+        }
+        if (!isValidGmail(email)) {
+            return res.status(400).json({ error: 'Only @gmail.com emails are allowed', status: false });
+        }
+        const [users] = await db.query(`SELECT * FROM ${TABLES.USER_TABLE} WHERE email = ?`, [email]);
+        if (users.length === 0) {
+            return res.status(404).json({ error: 'User not found', status: false });
+        }
+        const user = users[0];
+        const otp = Math.floor(100000 + Math.random() * 900000);
+        const expiry = new Date(Date.now() + 15 * 60 * 1000);
+        await db.query(`UPDATE ${TABLES.USER_TABLE} SET otp = ?, otp_expiry = ? WHERE id = ?`, [otp, expiry, user.id]);
 
-    return res.status(200).json({ message: 'OTP sent successfully', otp, status
-: true });
-    
- } catch (error) {
-    return res.status(500).json({ error: 'Server error', status: false });
-    
- }
+        // Send OTP email
+        const sendMail = require('../../utils/sendMail');
+        try {
+            await sendMail({
+                to: email,
+                subject: 'Your OTP for Password Reset',
+                text: `Your OTP for password reset is: ${otp}. It is valid for 15 minutes.`,
+                html: `<p>Your OTP for password reset is: <b>${otp}</b>. It is valid for 15 minutes.</p>`
+            });
+        } catch (mailErr) {
+            return res.status(500).json({ error: 'Failed to send OTP email', status: false });
+        }
+
+        return res.status(200).json({ message: 'OTP sent successfully', status: true });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ error: 'Server error', status: false });
+    }
 };
 
 const changePassword = async (req, res) => {
