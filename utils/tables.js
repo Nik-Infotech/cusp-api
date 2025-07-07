@@ -13,6 +13,9 @@ const TABLES = {
     EVENT_TAGS:'cusp_event_tags',
     REPORT_TABLE: 'cusp_report_post',
     DIRECTORY_TABLE: 'cusp_directories',
+    TOOLS_TABLE:'cusp_tools',
+    COURSES_TABLE: 'cusp_courses',
+    LESSONS_TABLE: 'cusp_lessons',
  
 
 }

@@ -27,6 +27,19 @@ const uploadDirectoryPhoto = multer({
     limits: { fileSize: 5 * 1024 * 1024 } // 5MB max
 }).single('p_photo');
 
+const uploadToolsPhoto = multer({
+    storage,
+    fileFilter: (req, file, cb) => {
+        if (isValidImage(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed for directory photo'));
+        }
+    },
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB max
+}).single('img_url');
+
+
 function validateDirectoryPhoto(req, res, next) {
     if (!req.file) {
         return res.status(400).json({ msg: 'Directory photo is required' });
@@ -150,5 +163,6 @@ module.exports = {
     uploadSinglePostMedia,
     validateSinglePostMediaFile
     ,uploadDirectoryPhoto
-    ,validateDirectoryPhoto
+    ,validateDirectoryPhoto,
+    uploadToolsPhoto
 };
