@@ -1,6 +1,41 @@
+
 const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
+
+// Multer storage config (for uploads folder)
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, uploadsDir);
+    },
+    filename: function (req, file, cb) {
+        const ext = path.extname(file.originalname);
+        cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + ext);
+    }
+});
+
+// Multer upload middleware for directory photo (single image, max 1 file, max 5MB)
+const uploadDirectoryPhoto = multer({
+    storage,
+    fileFilter: (req, file, cb) => {
+        if (isValidImage(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed for directory photo'));
+        }
+    },
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB max
+}).single('p_photo');
+
+function validateDirectoryPhoto(req, res, next) {
+    if (!req.file) {
+        return res.status(400).json({ msg: 'Directory photo is required' });
+    }
+    if (req.file.size > 5 * 1024 * 1024) {
+        return res.status(400).json({ msg: 'Directory photo must be <= 5MB' });
+    }
+    next();
+}
 
 const uploadsDir = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -33,16 +68,7 @@ function isValidVideo(mimetype) {
     return mimetype.startsWith('video/');
 }
 
-// Multer storage config (for uploads folder)
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, uploadsDir);
-    },
-    filename: function (req, file, cb) {
-        const ext = path.extname(file.originalname);
-        cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + ext);
-    }
-});
+
 
 function fileFilter(req, file, cb) {
     if (isValidImage(file.mimetype) || isValidVideo(file.mimetype)) {
@@ -123,4 +149,6 @@ module.exports = {
     validatePostMediaFiles,
     uploadSinglePostMedia,
     validateSinglePostMediaFile
+    ,uploadDirectoryPhoto
+    ,validateDirectoryPhoto
 };

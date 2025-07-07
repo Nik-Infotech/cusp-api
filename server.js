@@ -33,6 +33,7 @@ app.use('/api', require('./routes/tagRoutes'));
 app.use('/api', require('./routes/postRoutes'));
 app.use('/api', require('./routes/commentRoutes'));
 app.use('/api', require('./routes/eventRoutes'))
+app.use('/api', require('./routes/directoryRoutes'));
 
 app.use((err, req, res, next) => {
     console.error('Global error:', err);
