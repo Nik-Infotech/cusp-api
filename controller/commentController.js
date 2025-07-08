@@ -65,20 +65,35 @@ const createComment = async (req, res) => {
 
 const deleteComment = async (req, res) => {
     try {
-        const postId = req.params.id;
-        if (!postId) {
+        const commentId = req.params.id;
+        if (!commentId) {
             return res.status(400).json({ msg: 'Comment ID is required' });
         }
 
-        
-        const [users] = await db.query(`SELECT * FROM ${TABLES.COMMENT_TABLE} WHERE id = ? AND status = 1`, [postId]);
-        if (users.length === 0) {
+        // Find the comment to get its post_id
+        const [comments] = await db.query(`SELECT * FROM ${TABLES.COMMENT_TABLE} WHERE id = ? AND status = 1`, [commentId]);
+        if (comments.length === 0) {
             return res.status(404).json({ msg: 'Comment not found or already deleted' });
         }
+        const post_id = comments[0].post_id;
 
-       
-        await db.query(`UPDATE ${TABLES.COMMENT_TABLE} SET status = 0 WHERE id = ?`, [postId]);
-        res.status(200).json({ msg: 'Comment deleted (soft delete) successfully' });
+        // Soft delete the comment
+        await db.query(`UPDATE ${TABLES.COMMENT_TABLE} SET status = 0 WHERE id = ?`, [commentId]);
+
+        // Recount active comments for this post
+        const [countRows] = await db.query(
+            `SELECT COUNT(*) AS total FROM ${TABLES.COMMENT_TABLE} WHERE post_id = ? AND status = 1`,
+            [post_id]
+        );
+        const totalComments = countRows[0].total;
+
+        // Update the post's comments count
+        await db.query(
+            `UPDATE ${TABLES.POST_TABLE} SET comments = ? WHERE id = ?`,
+            [totalComments, post_id]
+        );
+
+        res.status(200).json({ msg: 'Comment deleted (soft delete) successfully', totalComments });
     } catch (error) {
         console.error('Error in soft delete:', error);
         res.status(500).json({ msg: 'Internal Server Error' });
