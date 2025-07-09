@@ -1,6 +1,9 @@
 require('dotenv').config();
 require('./db/db');
+require('./utils/passport');
 const express = require('express');
+const session = require('express-session'); 
+const passport = require('passport');
 const path = require('path');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
@@ -10,6 +13,19 @@ const cors = require('cors');
 
 const app = express();
 const http = require('http').createServer(app);
+
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your_session_secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false } // set to true if using HTTPS
+}));
+
+// 🔸 Initialize passport session
+app.use(passport.initialize());
+app.use(passport.session());
+
+
 const { Server } = require('socket.io');
 const port = process.env.PORT || 3000;
 const authValidation = require('./utils/authValidation');
@@ -41,6 +57,7 @@ app.use('/api', require('./routes/eventRoutes'));
 app.use('/api', require('./routes/directoryRoutes'));
 app.use('/api', require('./routes/courseRoutes'));
 app.use('/api', require('./routes/chatRoutes'));
+app.use('/api/auth', require('./routes/authRoutes'));
 
 app.use((err, req, res, next) => {
     console.error('Global error:', err);
@@ -49,7 +66,8 @@ app.use((err, req, res, next) => {
 
 
 
-// --- SOCKET.IO CHAT SECTION ---
+
+
 const io = new Server(http, {
   cors: {
     origin: '*',
@@ -57,6 +75,7 @@ const io = new Server(http, {
     credentials: true
   }
 });
+
 
 // Socket authentication middleware using your authValidation
 io.use(async (socket, next) => {
