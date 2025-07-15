@@ -1,9 +1,9 @@
 const db = require('../db/db');
 const crypto = require('crypto');
 
-// Encryption key and IV (should be stored securely in env variables in production)
-const ENCRYPTION_KEY = process.env.CHAT_ENCRYPTION_KEY || '12345678901234567890123456789012'; // 32 bytes for aes-256
-const IV = process.env.CHAT_ENCRYPTION_IV || '1234567890123456'; // 16 bytes for aes-256-cbc
+
+const ENCRYPTION_KEY = process.env.CHAT_ENCRYPTION_KEY || '12345678901234567890123456789012'; 
+const IV = process.env.CHAT_ENCRYPTION_IV || '1234567890123456'; 
 
 function encrypt(text) {
   const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), Buffer.from(IV));
