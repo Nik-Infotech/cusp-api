@@ -10,8 +10,8 @@ const directoryCreate = async (req, res) => {
         // Build full photo URL if file exists
         const baseUrl = req.protocol + '://' + req.get('host');
         const p_photo_url = p_photo ? `${baseUrl}/uploads/${p_photo}` : null;
-        if (!place_name || !location || !location_url || !p_name || !p_email || !p_photo) {
-            return res.status(400).json({ error: 'Directory details and photo are required' });
+        if (!place_name || !location || !location_url || !p_name || !p_email) {
+            return res.status(400).json({ error: 'Directory details are required' });
         }
 
         const [existingDirectories] = await db.query(`SELECT * FROM ${TABLES.DIRECTORY_TABLE} WHERE place_name = ?`, [place_name]);

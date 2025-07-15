@@ -92,11 +92,11 @@ const getPost = async (req, res) => {
                 u.profile_photo,
                 u.company_name,
                 u.job_title,
-                t.id AS tag_id,
-                t.name AS tag_title
+                tg.id AS tag_id,
+                tg.name AS tag_title
             FROM ${TABLES.POST_TABLE} p
             LEFT JOIN ${TABLES.USER_TABLE} u ON p.user_id = u.id
-            LEFT JOIN ${TABLES.REPORT_TABLE} t ON FIND_IN_SET(t.id, p.tags)
+            LEFT JOIN ${TABLES.TAG_TABLE} tg ON FIND_IN_SET(tg.id, p.tags)
             WHERE p.status = 1
         `;
 
@@ -390,9 +390,8 @@ const reportPost = async (req, res) => {
             return res.status(404).json({ msg: 'User not found' });
         }   
         const username = user[0].username;
-    
 
-        res.status(201).json({ msg: 'Post reported successfully' , post_id: post_id, reason: reason, user_id: user_id , username: username });
+        res.status(201).json({ msg: 'Post reported successfully', post_id, reason, user_id, username });
     } catch (error) {
         console.error('Error reporting post:', error);
         res.status(500).json({ msg: 'Internal Server Error', error: error.message });

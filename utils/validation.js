@@ -1,4 +1,3 @@
-
 const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
@@ -33,7 +32,7 @@ const uploadToolsPhoto = multer({
         if (isValidImage(file.mimetype)) {
             cb(null, true);
         } else {
-            cb(new Error('Only image files are allowed for directory photo'));
+            cb(new Error('Only image files areallowed for directory photo'));
         }
     },
     limits: { fileSize: 5 * 1024 * 1024 } // 5MB max
@@ -41,11 +40,10 @@ const uploadToolsPhoto = multer({
 
 
 function validateDirectoryPhoto(req, res, next) {
-    if (!req.file) {
-        return res.status(400).json({ msg: 'Directory photo is required' });
-    }
-    if (req.file.size > 5 * 1024 * 1024) {
-        return res.status(400).json({ msg: 'Directory photo must be <= 5MB' });
+    if (req.file) {
+        if (req.file.size > 5 * 1024 * 1024) {
+            return res.status(400).json({ msg: 'Directory photo must be <= 5MB' });
+        }
     }
     next();
 }
