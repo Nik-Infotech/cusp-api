@@ -47,6 +47,10 @@ exports.getChat = async (req, res) => {
   }
 };
 
+let io;
+exports.setSocketIoInstance = (ioInstance) => {
+  io = ioInstance;
+};
 
 exports.sendMessage = async (req, res) => {
   const userId = req.user_id;
@@ -71,7 +75,14 @@ exports.sendMessage = async (req, res) => {
 
   try {
     const [result] = await db.query(sql, [userId, to, encryptedMessage]);
-    console.log('Query success, inserted ID:', result.insertId);
+    // WebSocket emit karein agar io instance available hai
+    if (io) {
+      io.to(to.toString()).emit('chatMessage', {
+        from: userId,
+        message,
+        time: new Date(),
+      });
+    }
     res.status(200).json({ success: true, messageId: result.insertId , sender_id: userId, receiver_id: to });
   } catch (err) {
     console.error('Query error:', err.message);

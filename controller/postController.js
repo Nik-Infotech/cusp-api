@@ -96,7 +96,7 @@ const getPost = async (req, res) => {
                 t.name AS tag_title
             FROM ${TABLES.POST_TABLE} p
             LEFT JOIN ${TABLES.USER_TABLE} u ON p.user_id = u.id
-            LEFT JOIN ${TABLES.TAG_TABLE} t ON FIND_IN_SET(t.id, p.tags)
+            LEFT JOIN ${TABLES.REPORT_TABLE} t ON FIND_IN_SET(t.id, p.tags)
             WHERE p.status = 1
         `;
 
@@ -399,4 +399,81 @@ const reportPost = async (req, res) => {
     }
 };
 
-module.exports = { createPost, getPost, deletePost, updatePost ,savePost ,DeleteSavedPost , reportPost };
+//get reported posts
+const getReports = async (req, res) => {
+    try {
+        const reportId = req.params.id;
+        let sql, params;
+
+        if (reportId) {
+            sql = `SELECT * FROM ${TABLES.REPORT_TABLE} WHERE id = ?`;
+            params = [reportId];
+        } else {
+            sql = `SELECT * FROM ${TABLES.REPORT_TABLE}`;
+            params = [];
+        }
+
+        const [reportedposts] = await db.query(sql, params);
+
+        if (reportId && reportedposts.length === 0) {
+            return res.status(404).json({ msg: 'Tag not found' });
+        }
+
+        res.status(200).json(reportId ? reportedposts[0] : reportedposts);
+    } catch (error) {
+        console.error('Error fetching reportedposts:', error);
+        res.status(500).json({ msg: 'Internal Server Error' });
+    }
+};
+
+// Update report status and action by report id
+const updateReport = async (req, res) => {
+    try {
+        const reportId = req.params.id;
+        const { r_status, action } = req.body;
+
+        if (!reportId) {
+            return res.status(400).json({ msg: 'Report ID is required' });
+        }
+        if (r_status === undefined && action === undefined) {
+            return res.status(400).json({ msg: 'At least one of r_status or action is required' });
+        }
+
+        // Build dynamic SQL for only provided fields
+        const fields = [];
+        const values = [];
+        if (r_status !== undefined) {
+            fields.push('r_status = ?');
+            values.push(r_status);
+        }
+        if (action !== undefined) {
+            fields.push('action = ?');
+            values.push(action);
+        }
+        values.push(reportId);
+
+        const sql = `UPDATE ${TABLES.REPORT_TABLE} SET ${fields.join(', ')} WHERE id = ?`;
+        const [result] = await db.query(sql, values);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ msg: 'Report not found' });
+        }
+
+        res.status(200).json({ msg: 'Report updated successfully' });
+    } catch (error) {
+        console.error('Error updating report:', error);
+        res.status(500).json({ msg: 'Internal Server Error', error: error.message });
+    }
+};
+
+module.exports = { 
+    createPost, 
+    getPost, 
+    deletePost, 
+    updatePost,
+    savePost,
+    DeleteSavedPost,
+    getReports,
+    reportPost,
+    updateReport
+};

@@ -28,7 +28,8 @@ app.use(passport.session());
 
 const { Server } = require('socket.io');
 const port = process.env.PORT || 3000;
-const authValidation = require('./utils/authValidation');
+const chatController = require('./controller/chatController');
+const chatSocket = require('./websocket/chatSocket'); // <-- yahan import karein
 
 
 app.use(cors({
@@ -75,52 +76,10 @@ const io = new Server(http, {
     credentials: true
   }
 });
+chatController.setSocketIoInstance(io);
 
-
-// Socket authentication middleware using your authValidation
-io.use(async (socket, next) => {
-  try {
-    // Accept token from query or headers
-    const token = socket.handshake.auth?.token || socket.handshake.headers['authorization']?.split(' ')[1];
-    if (!token) return next(new Error('Authentication token required'));
-    // Use your existing authValidation logic
-    const user = await new Promise((resolve, reject) => {
-      authValidation(token, (err, user) => {
-        if (err) reject(err);
-        else resolve(user);
-      });
-    });
-    socket.user = user;
-    next();
-  } catch (err) {
-    next(new Error('Authentication failed'));
-  }
-});
-
-// In-memory chat (for demo, not persistent)
-let onlineUsers = {};
-
-io.on('connection', (socket) => {
-  const user = socket.user;
-  onlineUsers[user._id] = socket.id;
-  io.emit('onlineUsers', Object.keys(onlineUsers));
-
-  socket.on('chatMessage', ({ to, message }) => {
-    // Send message to specific user if online
-    if (onlineUsers[to]) {
-      io.to(onlineUsers[to]).emit('chatMessage', {
-        from: user._id,
-        message,
-        time: new Date()
-      });
-    }
-  });
-
-  socket.on('disconnect', () => {
-    delete onlineUsers[user._id];
-    io.emit('onlineUsers', Object.keys(onlineUsers));
-  });
-});
+// Saara socket logic yahan se hata kar:
+chatSocket(io); // <-- yahan call karein
 
 http.listen(port, () => {
   console.log(`Server running on ${process.env.PUBLIC_API_URL}`);
