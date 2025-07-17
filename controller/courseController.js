@@ -1,29 +1,52 @@
 const db = require('../db/db');
 const TABLES = require('..//utils/tables'); 
+const SERVER_URL = process.env.PUBLIC_API_URL || 'http://localhost:8000'; 
 
 const courseCreate = async (req, res) => {
     try {
         const { name, description } = req.body;
+
         if (!name) {
-            return res.status(400).json({ error: 'course name is required' });
+            return res.status(400).json({ error: 'Course name is required' });
         }
 
-        // Check if couse already exists
-        const [existingTags] = await db.query(`SELECT * FROM ${TABLES.COURSES_TABLE} WHERE name = ?`, [name]);
+        // Check if course already exists
+        const [existingTags] = await db.query(
+            `SELECT * FROM ${TABLES.COURSES_TABLE} WHERE name = ?`,
+            [name]
+        );
         if (existingTags.length > 0) {
-            return res.status(400).json({ error: 'course already exists' });
+            return res.status(400).json({ error: 'Course already exists' });
         }
+
+        // Image file
+        const image = req.file ? req.file.filename : null;
 
         // Insert new course
-        const sql = `INSERT INTO ${TABLES.COURSES_TABLE} (name, description) VALUES (?, ?)`;
-        const [result] = await db.query(sql, [name, description]);
+        const sql = `INSERT INTO ${TABLES.COURSES_TABLE} (name, description, image) VALUES (?, ?, ?)`;
+        const [result] = await db.query(sql, [name, description, image]);
 
-        return res.status(201).json({ message: 'course created successfully', courseId: result.insertId ,data: { name, description } });
+        // Build full image URL (http(s)://host/uploads/filename)
+        const imageUrl = image
+            ? `${req.protocol}://${req.get('host')}/uploads/${image}`
+            : null;
+
+        return res.status(201).json({
+            message: 'Course created successfully',
+            courseId: result.insertId,
+            data: {
+                name,
+                description,
+                image: imageUrl
+            }
+        });
     } catch (error) {
-        console.error('Error creating tag:', error);
+        console.error('Error creating course:', error);
         return res.status(500).json({ error: 'Internal server error' });
     }
-}
+};
+
+
 
 const getCourse = async (req, res) => {
     try {
@@ -99,27 +122,50 @@ const updateCourse = async (req, res) => {
         const { name, description } = req.body;
 
         if (!courseId) {
-            return res.status(400).json({ error: 'course ID is required' });
+            return res.status(400).json({ error: 'Course ID is required' });
         }
 
-        // Check if tag exists
+        // Check if course exists
         const [existingTags] = await db.query(`SELECT * FROM ${TABLES.COURSES_TABLE} WHERE id = ? AND status = 1`, [courseId]);
         if (existingTags.length === 0) {
-            return res.status(404).json({ error: 'course not found' });
+            return res.status(404).json({ error: 'Course not found' });
         }
 
-        // Update tag
-        const sql = `UPDATE ${TABLES.COURSES_TABLE} SET name = ?, description = ? , updated_at=NOW() WHERE id = ?`;
-        await db.query(sql, [name, description, courseId]);
+        const image = req.file?.filename;
 
-        return res.status(200).json({ message: 'course updated successfully', data: { id: courseId, name, description } });
-        
+        let sql, params;
+
+        if (image) {
+            sql = `UPDATE ${TABLES.COURSES_TABLE} SET name = ?, description = ?, image = ?, updated_at = NOW() WHERE id = ?`;
+            params = [name, description, image, courseId];
+        } else {
+            sql = `UPDATE ${TABLES.COURSES_TABLE} SET name = ?, description = ?, updated_at = NOW() WHERE id = ?`;
+            params = [name, description, courseId];
+        }
+
+        await db.query(sql, params);
+
+        const imageUrl = image
+            ? `${req.protocol}://${req.get('host')}/uploads/${image}`
+            : existingTags[0].image
+                ? `${req.protocol}://${req.get('host')}/uploads/${existingTags[0].image}`
+                : null;
+
+        return res.status(200).json({
+            message: 'Course updated successfully',
+            data: {
+                id: courseId,
+                name,
+                description,
+                image: imageUrl
+            }
+        });
+
     } catch (error) {
-        console.error('Error updating tag:', error);
+        console.error('Error updating course:', error);
         return res.status(500).json({ error: 'Internal server error' });
-        
     }
-}
+};
 
 
 const lessionCreate = async (req, res) => {
@@ -224,4 +270,129 @@ const updatelession = async (req, res) => {
     }
 }
 
-module.exports = {courseCreate , updateCourse , deleteCourse , getCourse ,lessionCreate , getLession , deletelession , updatelession};
+
+const createTopic = async (req, res) => {
+    try {
+        const { lesson_id } = req.body;
+
+        if (!lesson_id) {
+            return res.status(400).json({ error: 'Lesson ID is required' });
+        }
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ error: 'At least one PPT file is required' });
+        }
+
+        // Check if lesson exists
+        const [existingLesson] = await db.query(`SELECT * FROM ${TABLES.LESSONS_TABLE} WHERE id = ? AND status = 1`, [lesson_id]);
+        if (existingLesson.length === 0) {
+            return res.status(404).json({ error: 'Lesson not found' });
+        }
+
+        // Insert each PPT as a topic entry
+        const inserted = [];
+        for (const pptFile of req.files) {
+            const pptUrl = `${SERVER_URL}/uploads/${pptFile.filename}`;
+            const sql = `INSERT INTO ${TABLES.TOPICS_TABLE} (lesson_id, ppt) VALUES (?, ?)`;
+            const [result] = await db.query(sql, [lesson_id, pptUrl]);
+            inserted.push({ id: result.insertId, lesson_id, ppt: pptUrl });
+        }
+
+        return res.status(201).json({ message: 'Topics created successfully', data: inserted });
+    } catch (error) {
+        console.error('Error creating topic:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
+const updateTopic = async (req, res) => {
+    try {
+        const topicId = req.params.id;
+        const { lesson_id } = req.body;
+
+        if (!topicId) {
+            return res.status(400).json({ error: 'Topic ID is required' });
+        }
+        if (!lesson_id) {
+            return res.status(400).json({ error: 'Lesson ID is required' });
+        }
+
+        // Check if topic exists
+        const [existingTopic] = await db.query(`SELECT * FROM ${TABLES.TOPICS_TABLE} WHERE id = ?`, [topicId]);
+        if (existingTopic.length === 0) {
+            return res.status(404).json({ error: 'Topic not found' });
+        }
+
+        let pptUrl = existingTopic[0].ppt;
+        if (req.files && req.files.length > 0) {
+            pptUrl = `${SERVER_URL}/uploads/${req.files[0].filename}`;
+        }
+
+        const sql = `UPDATE ${TABLES.TOPICS_TABLE} SET lesson_id = ?, ppt = ?, updated_at = NOW() WHERE id = ?`;
+        await db.query(sql, [lesson_id, pptUrl, topicId]);
+
+        return res.status(200).json({ message: 'Topic updated successfully', data: { id: topicId, lesson_id, ppt: pptUrl } });
+    } catch (error) {
+        console.error('Error updating topic:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
+const getTopic = async (req, res) => {
+    try {
+        const topicId = req.params.id;
+        let sql, params;
+
+        if (topicId) {
+            sql = `
+                SELECT t.*, l.name AS lesson_name
+                FROM ${TABLES.TOPICS_TABLE} t
+                LEFT JOIN ${TABLES.LESSONS_TABLE} l ON t.lesson_id = l.id
+                WHERE t.id = ? AND t.status = 1
+            `;
+            params = [topicId];
+        } else {
+            sql = `
+                SELECT t.*, l.name AS lesson_name
+                FROM ${TABLES.TOPICS_TABLE} t
+                LEFT JOIN ${TABLES.LESSONS_TABLE} l ON t.lesson_id = l.id
+                WHERE t.status = 1
+            `;
+            params = [];
+        }
+
+        const [topics] = await db.query(sql, params);
+
+        if (topicId && topics.length === 0) {
+            return res.status(404).json({ msg: 'directory not found' });
+        }
+
+        return res.status(200).json(topics);
+    } catch (error) {
+        console.error('Error fetching directory:', error);
+        res.status(500).json({ msg: 'Internal Server Error' });
+    }
+};
+
+const deleteTopic = async (req, res) => {
+    try {
+        const topicId = req.params.id;
+        if (!topicId) {
+            return res.status(400).json({ msg: 'directory ID is required' });
+        }
+
+        // Check if user exists and is active
+        const [users] = await db.query(`SELECT * FROM ${TABLES.TOPICS_TABLE} WHERE id = ? AND status = 1`, [topicId]);
+        if (users.length === 0) {
+            return res.status(404).json({ msg: 'Tag not found or already deleted' });
+        }
+
+        // Soft delete: set status = 0
+        await db.query(`UPDATE ${TABLES.TOPICS_TABLE} SET status = 0 WHERE id = ?`, [topicId]);
+        res.status(200).json({ msg: 'Tag deleted (soft delete) successfully' });
+    } catch (error) {
+        console.error('Error in soft delete:', error);
+        res.status(500).json({ msg: 'Internal Server Error' });
+    }
+};
+
+module.exports = {courseCreate , updateCourse , deleteCourse , getCourse ,lessionCreate , getLession , deletelession , updatelession,createTopic , updateTopic,deleteTopic, getTopic};

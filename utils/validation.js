@@ -79,7 +79,12 @@ function isValidVideo(mimetype) {
     return mimetype.startsWith('video/');
 }
 
-
+function isValidPPT(mimetype) {
+    return (
+        mimetype === 'application/vnd.ms-powerpoint' ||
+        mimetype === 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+    );
+}
 
 function fileFilter(req, file, cb) {
     if (isValidImage(file.mimetype) || isValidVideo(file.mimetype)) {
@@ -150,6 +155,42 @@ function validateSinglePostMediaFile(req, res, next) {
     next();
 }
 
+const uploadPPT = multer({
+    storage,
+    fileFilter: (req, file, cb) => {
+        if (isValidPPT(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only PPT files are allowed'));
+        }
+    },
+    limits: { fileSize: 15 * 1024 * 1024 } // 15MB max per file
+}).array('ppt', 10); // Accept up to 10 PPT files
+
+function validatePPTFiles(req, res, next) {
+    if (req.files) {
+        for (const ppt of req.files) {
+            if (ppt.size > 15 * 1024 * 1024) {
+                return res.status(400).json({ msg: 'Each PPT must be <= 15MB' });
+            }
+        }
+    }
+    next();
+}
+
+const uploadCourseImage = multer({
+    storage,
+    fileFilter: (req, file, cb) => {
+        if (isValidImage(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed'));
+        }
+    },
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB max
+}).single('image'); // Field name in form-data
+
+
 module.exports = {
     isValidGmail,
     isValidPhone,
@@ -162,5 +203,8 @@ module.exports = {
     validateSinglePostMediaFile
     ,uploadDirectoryPhoto
     ,validateDirectoryPhoto,
-    uploadToolsPhoto
+    uploadToolsPhoto,
+    uploadPPT,
+    validatePPTFiles,
+    uploadCourseImage
 };

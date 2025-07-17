@@ -16,6 +16,7 @@ const TABLES = {
     TOOLS_TABLE:'cusp_tools',
     COURSES_TABLE: 'cusp_courses',
     LESSONS_TABLE: 'cusp_lessons',
+    TOPICS_TABLE: 'cusp_topics',
  
 
 }
