@@ -170,6 +170,15 @@ const login = async (req, res) => {
       }
     }
 
+    // Fetch enrolled courses for the user
+const [enrolledCourses] = await db.query(
+  `SELECT c.id, c.name FROM ${TABLES.ENROLLMENTS_TABLE} e
+   JOIN ${TABLES.COURSES_TABLE} c ON e.course_id = c.id
+   WHERE e.user_id = ?`,
+  [user.id]
+);
+
+
     //fetch the likes of the user (only posts that still exist, are not deleted, and like status=1)
     let userLikes = [];
     const [likes] = await db.query(
@@ -217,6 +226,7 @@ const login = async (req, res) => {
         que1: user.que1 || '',
         que2: user.que2 || '',
         address: user.address || '',
+        enrolled_courses: enrolledCourses,
         created_at: user.created_at || null,
         updated_at: user.updated_at || null
       }
@@ -289,6 +299,16 @@ const getUsers = async (req, res) => {
                     postTitles = posts.map(post => ({ id: post.id, title: post.title, description: post.description }));
                 }
             }
+            // Fetch enrolled courses for this user
+let enrolledCourses = [];
+const [enrolled] = await db.query(
+  `SELECT c.id, c.name FROM ${TABLES.ENROLLMENTS_TABLE} e
+   JOIN ${TABLES.COURSES_TABLE} c ON e.course_id = c.id
+   WHERE e.user_id = ?`,
+  [user.id]
+);
+enrolledCourses = enrolled;
+
 
             // User's created posts (array of objects: id, title, description)
             let createdPosts = [];
@@ -370,10 +390,11 @@ const getUsers = async (req, res) => {
                 saved_post_ids: savedPostIds,
                 saved_post_titles: savedPostsTitles,
                 user_likes: userLikes,
-                registered_events, // Array of event_ids user registered for
+                registered_events, 
                 que1: user.que1 || '',
                 que2: user.que2 || '',
                 address: user.address || '',
+                enrolled_courses: enrolledCourses,
                 created_at: user.created_at || null,
                 updated_at: user.updated_at || null
             };

@@ -395,4 +395,52 @@ const deleteTopic = async (req, res) => {
     }
 };
 
-module.exports = {courseCreate , updateCourse , deleteCourse , getCourse ,lessionCreate , getLession , deletelession , updatelession,createTopic , updateTopic,deleteTopic, getTopic};
+const userEnroll = async (req, res) => {
+    try {
+        const user_id = req.user_id;
+        const { course_id } = req.body;
+        console.log("course_id =>", course_id);
+
+        if (!user_id || !course_id) {
+            return res.status(400).json({ error: 'User ID and Course ID are required' });
+        }
+
+        // Insert into enrollments table
+        await db.query(
+            `INSERT INTO ${TABLES.ENROLLMENTS_TABLE} (user_id, course_id) VALUES (?, ?)`,
+            [user_id, course_id]
+        );
+
+        // Fetch user name and course name using JOINs
+        const [result] = await db.query(
+            `SELECT 
+                u.username, 
+                c.name AS course_name 
+             FROM ${TABLES.USER_TABLE} u
+             JOIN ${TABLES.ENROLLMENTS_TABLE} e ON u.id = e.user_id
+             JOIN ${TABLES.COURSES_TABLE} c ON c.id = e.course_id
+             WHERE e.user_id = ? AND e.course_id = ?
+             ORDER BY e.id DESC
+             LIMIT 1`,
+            [user_id, course_id]
+        );
+
+        const enrolledData = result[0]; // latest enrolled record with username and course name
+
+        res.status(201).json({
+            message: 'Enrollment successful',
+            user: enrolledData.username,
+            course: enrolledData.course_name
+        });
+
+    } catch (error) {
+        console.error('Error enrolling user:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+
+
+
+
+module.exports = {courseCreate , updateCourse , deleteCourse , getCourse ,lessionCreate , getLession , deletelession , updatelession,createTopic , updateTopic,deleteTopic, getTopic , userEnroll};

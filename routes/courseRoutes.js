@@ -1,7 +1,7 @@
 const express = require('express');
 
 const authMiddleware = require('../utils/authValidation');
-const { courseCreate, getCourse, deleteCourse, updateCourse, lessionCreate, getLession, deletelession, updatelession, createTopic, updateTopic, getTopic, deleteTopic } = require('../controller/courseController');
+const { courseCreate, getCourse, deleteCourse, updateCourse, lessionCreate, getLession, deletelession, updatelession, createTopic, updateTopic, getTopic, deleteTopic, userEnroll } = require('../controller/courseController');
 const { uploadPPT, validatePPTFiles, uploadCourseImage } = require('../utils/validation');
 
 const router = express.Router();
@@ -32,5 +32,5 @@ router.patch(
 
 router.get(['/topic', '/topic/:id'], getTopic);
 router.delete('/topic/:id',deleteTopic)
-
+router.post('/enroll', authMiddleware,userEnroll)
 module.exports = router;

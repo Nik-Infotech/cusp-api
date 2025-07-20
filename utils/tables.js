@@ -17,6 +17,7 @@ const TABLES = {
     COURSES_TABLE: 'cusp_courses',
     LESSONS_TABLE: 'cusp_lessons',
     TOPICS_TABLE: 'cusp_topics',
+    ENROLLMENTS_TABLE: 'cusp_enrollments',
  
 
 }
