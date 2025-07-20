@@ -273,7 +273,7 @@ const updatelession = async (req, res) => {
 
 const createTopic = async (req, res) => {
     try {
-        const { lesson_id } = req.body;
+        const { lesson_id , title } = req.body;
 
         if (!lesson_id) {
             return res.status(400).json({ error: 'Lesson ID is required' });
@@ -292,9 +292,9 @@ const createTopic = async (req, res) => {
         const inserted = [];
         for (const pptFile of req.files) {
             const pptUrl = `${SERVER_URL}/uploads/${pptFile.filename}`;
-            const sql = `INSERT INTO ${TABLES.TOPICS_TABLE} (lesson_id, ppt) VALUES (?, ?)`;
-            const [result] = await db.query(sql, [lesson_id, pptUrl]);
-            inserted.push({ id: result.insertId, lesson_id, ppt: pptUrl });
+            const sql = `INSERT INTO ${TABLES.TOPICS_TABLE} (lesson_id, ppt , title) VALUES (?, ?, ?)`;
+            const [result] = await db.query(sql, [lesson_id, pptUrl, title]);
+            inserted.push({ id: result.insertId, lesson_id, ppt: pptUrl , title });
         }
 
         return res.status(201).json({ message: 'Topics created successfully', data: inserted });
@@ -307,7 +307,7 @@ const createTopic = async (req, res) => {
 const updateTopic = async (req, res) => {
     try {
         const topicId = req.params.id;
-        const { lesson_id } = req.body;
+        const { lesson_id , title } = req.body;
 
         if (!topicId) {
             return res.status(400).json({ error: 'Topic ID is required' });
@@ -327,10 +327,10 @@ const updateTopic = async (req, res) => {
             pptUrl = `${SERVER_URL}/uploads/${req.files[0].filename}`;
         }
 
-        const sql = `UPDATE ${TABLES.TOPICS_TABLE} SET lesson_id = ?, ppt = ?, updated_at = NOW() WHERE id = ?`;
-        await db.query(sql, [lesson_id, pptUrl, topicId]);
+        const sql = `UPDATE ${TABLES.TOPICS_TABLE} SET lesson_id = ?, ppt = ?, title=? , updated_at = NOW() WHERE id = ?`;
+       await db.query(sql, [lesson_id, pptUrl, title, topicId]);
 
-        return res.status(200).json({ message: 'Topic updated successfully', data: { id: topicId, lesson_id, ppt: pptUrl } });
+        return res.status(200).json({ message: 'Topic updated successfully', data: { id: topicId, lesson_id, ppt: pptUrl , title} });
     } catch (error) {
         console.error('Error updating topic:', error);
         return res.status(500).json({ error: 'Internal server error' });
