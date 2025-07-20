@@ -197,6 +197,14 @@ const [enrolledCourses] = await db.query(
     if (eventRegs && eventRegs.length > 0) {
         registered_events = eventRegs.map(e => e.event_id);
     }
+    // Fetch user's documents (only active ones)
+let userDocuments = [];
+const [docs] = await db.query(
+  `SELECT id, title FROM ${TABLES.DOCUMENTS_TABLE} WHERE user_id = ? AND status = 1`,
+  [user.id]
+);
+userDocuments = docs || [];
+
 
     res.status(200).json({
       msg: 'Login successful',
@@ -227,6 +235,7 @@ const [enrolledCourses] = await db.query(
         que2: user.que2 || '',
         address: user.address || '',
         enrolled_courses: enrolledCourses,
+        user_documents: userDocuments,
         created_at: user.created_at || null,
         updated_at: user.updated_at || null
       }
@@ -368,6 +377,15 @@ enrolledCourses = enrolled;
                 registered_events = eventRegs.map(e => e.event_id);
             }
 
+            // Fetch user's documents
+let userDocuments = [];
+const [docs] = await db.query(
+  `SELECT id, title FROM ${TABLES.DOCUMENTS_TABLE} WHERE user_id = ? AND status = 1`,
+  [user.id]
+);
+userDocuments = docs || [];
+
+
             return {
                 id: user.id,
                 username: user.username || '',
@@ -395,6 +413,7 @@ enrolledCourses = enrolled;
                 que2: user.que2 || '',
                 address: user.address || '',
                 enrolled_courses: enrolledCourses,
+                user_documents: userDocuments,
                 created_at: user.created_at || null,
                 updated_at: user.updated_at || null
             };

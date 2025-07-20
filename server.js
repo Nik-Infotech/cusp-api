@@ -18,7 +18,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'your_session_secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false } // set to true if using HTTPS
+  cookie: { secure: false } 
 }));
 
 // 🔸 Initialize passport session
@@ -29,7 +29,7 @@ app.use(passport.session());
 const { Server } = require('socket.io');
 const port = process.env.PORT || 3000;
 const chatController = require('./controller/chatController');
-const chatSocket = require('./websocket/chatSocket'); // <-- yahan import karein
+const chatSocket = require('./websocket/chatSocket'); 
 
 
 app.use(cors({
@@ -58,7 +58,8 @@ app.use('/api', require('./routes/eventRoutes'));
 app.use('/api', require('./routes/directoryRoutes'));
 app.use('/api', require('./routes/courseRoutes'));
 app.use('/api', require('./routes/chatRoutes'));
-app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/auth', require('./routes/authRoutes')); // Google 
+app.use('/api', require('./routes/documentsRoutes')); 
 
 app.use((err, req, res, next) => {
     console.error('Global error:', err);
@@ -78,8 +79,8 @@ const io = new Server(http, {
 });
 chatController.setSocketIoInstance(io);
 
-// Saara socket logic yahan se hata kar:
-chatSocket(io); // <-- yahan call karein
+
+chatSocket(io); 
 
 http.listen(port, () => {
   console.log(`Server running on ${process.env.PUBLIC_API_URL}`);

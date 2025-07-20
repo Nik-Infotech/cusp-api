@@ -18,7 +18,7 @@ const TABLES = {
     LESSONS_TABLE: 'cusp_lessons',
     TOPICS_TABLE: 'cusp_topics',
     ENROLLMENTS_TABLE: 'cusp_enrollments',
- 
+    DOCUMENTS_TABLE: 'cusp_documents',
 
 }
 module.exports = TABLES;

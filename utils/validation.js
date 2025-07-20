@@ -190,6 +190,37 @@ const uploadCourseImage = multer({
     limits: { fileSize: 5 * 1024 * 1024 } // 5MB max
 }).single('image'); // Field name in form-data
 
+function isValidDocument(mimetype) {
+    return (
+        isValidImage(mimetype) ||
+        isValidVideo(mimetype) ||
+        mimetype === 'application/pdf' ||
+        isValidPPT(mimetype)
+    );
+}
+function documentFileFilter(req, file, cb) {
+    if (isValidDocument(file.mimetype)) {
+        cb(null, true);
+    } else {
+        cb(new Error('Only images, videos, PDFs, and PPT files are allowed'));
+    }
+}
+const uploadDocuments = multer({
+    storage,
+    fileFilter: documentFileFilter,
+    limits: { fileSize: 20 * 1024 * 1024 } // 20MB max per file
+}).array('documents', 10); // Up to 10 files
+function validateDocuments(req, res, next) {
+    if (req.files) {
+        for (const file of req.files) {
+            if (file.size > 30 * 1024 * 1024) {
+                return res.status(400).json({ msg: 'Each document must be <= 30MB' });
+            }
+        }
+    }
+    next();
+}
+
 
 module.exports = {
     isValidGmail,
@@ -206,5 +237,10 @@ module.exports = {
     uploadToolsPhoto,
     uploadPPT,
     validatePPTFiles,
-    uploadCourseImage
+    uploadCourseImage,
+    isValidVideo,
+    isValidDocument,
+    uploadDocuments,
+    validateDocuments
+    
 };
