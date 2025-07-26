@@ -18,15 +18,13 @@ router.get('/google/callback', (req, res, next) => {
       return res.status(401).json({ msg: 'No user returned from Google' });
     }
 
-    // ✅ Login the user manually if you want session-based login
     req.login(user, (loginErr) => {
-      if (loginErr) {
+      if (loginErr) {D
         console.error('Login session error:', loginErr);
         return res.status(500).json({ msg: 'Login session failed' });
       }
 
-      // ✅ Successfully authenticated
-      console.log('User info:', user); // 👈 This logs user details
+      console.log('User info:', user); 
       return res.json({
         msg: 'Google login successful',
         user
