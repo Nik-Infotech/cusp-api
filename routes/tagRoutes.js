@@ -2,7 +2,7 @@ const express = require('express');
 
 const authMiddleware = require('../utils/authValidation');
 const { tagCreate, getTags, deleteTag, updateTag } = require('../controller/tagController');
-const {submitPractice, getsubmitPractice} = require('../controller/calculatorController');
+const {submitPractice, getsubmitPractice, updatePracticeStatus, deletePracticeById} = require('../controller/calculatorController');
 
 const router = express.Router();
 
@@ -14,6 +14,10 @@ router.patch('/tags/:id', authMiddleware ,updateTag);
 
 router.post('/calculator',submitPractice)
 router.get(['/calculator', '/calculator/:id'],getsubmitPractice);
+router.patch('/calculator/:id',updatePracticeStatus); 
+router.delete('/calculator/:id',deletePracticeById)
+
+
 
 
 

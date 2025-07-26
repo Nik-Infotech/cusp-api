@@ -122,4 +122,50 @@ const getsubmitPractice = async (req, res) => {
   }
 };
 
-module.exports = {submitPractice, getsubmitPractice};
+const updatePracticeStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ error: 'Status is required in the request body' });
+    }
+
+    const query = `UPDATE ${TABLES.CALCULATOR_TABLE} SET status = ? WHERE id = ?`;
+    const [result] = await db.query(query, [status, id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'No record found with the given document ID' });
+    }
+
+    return res.status(200).json({ message: 'Status updated successfully' });
+
+  } catch (error) {
+    console.error('Error updating status:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+const deletePracticeById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const query = `DELETE FROM ${TABLES.CALCULATOR_TABLE} WHERE id = ?`;
+    const [result] = await db.query(query, [id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'No record found with the given document ID' });
+    }
+
+    return res.status(200).json({ message: 'Record deleted successfully' });
+
+  } catch (error) {
+    console.error('Error deleting record:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+
+
+
+module.exports = {submitPractice, getsubmitPractice, updatePracticeStatus,deletePracticeById};
