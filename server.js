@@ -33,7 +33,8 @@ const chatSocket = require('./websocket/chatSocket');
 
 
 app.use(cors({
-  origin: '*',
+  // origin: '*',
+    origin: process.env.PUBLIC_API_URL || 'http://31.97.56.234:8000' || 'http://localhost:8000',
   methods: 'GET,POST,PUT,PATCH,DELETE',
   allowedHeaders: 'Content-Type,Authorization',
   exposedHeaders: 'Content-Length,X-Kuma-Revision',
